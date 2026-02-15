@@ -3,17 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dumbbell, Lock } from 'lucide-react';
+import { Dumbbell, Lock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    if (!email || !password) return;
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Erreur de connexion', description: error, variant: 'destructive' });
+    } else {
+      navigate('/');
+    }
   };
 
   return (
@@ -32,11 +45,11 @@ export default function Login() {
             <div>
               <Label className="text-sm">Email</Label>
               <Input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
-                placeholder="admin@gymmanager.ma"
+                placeholder="admin@admin"
               />
             </div>
             <div>
@@ -49,11 +62,15 @@ export default function Login() {
                 placeholder="••••••••"
               />
             </div>
-            <Button type="submit" className="w-full gap-2">
-              <Lock className="w-4 h-4" />
+            <Button type="submit" className="w-full gap-2" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
               Connexion
             </Button>
           </form>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Compte par défaut: admin@admin / 12345@@?
+          </p>
         </CardContent>
       </Card>
     </div>
