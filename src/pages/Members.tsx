@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -42,50 +42,50 @@ export default function Members() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold tracking-wider text-neon-cyan">MEMBRES</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Membres</h1>
           <p className="text-muted-foreground text-sm mt-1">{members.length} membres enregistrés</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 font-display tracking-wider text-xs bg-primary text-primary-foreground hover:bg-primary/80 neon-glow">
+            <Button className="gap-2">
               <UserPlus className="w-4 h-4" />
-              NOUVEAU MEMBRE
+              Nouveau membre
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass-panel border-primary/30 neon-glow">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle className="font-display tracking-wider text-primary">AJOUTER UN MEMBRE</DialogTitle>
+              <DialogTitle>Ajouter un membre</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nom Complet</Label>
+                <Label className="text-sm">Nom Complet</Label>
                 <Input
                   value={form.fullName}
                   onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                  className="mt-1 bg-secondary border-border focus:border-primary"
+                  className="mt-1"
                   placeholder="Ex: Ahmed Benali"
                 />
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Téléphone</Label>
+                <Label className="text-sm">Téléphone</Label>
                 <Input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="mt-1 bg-secondary border-border focus:border-primary"
+                  className="mt-1"
                   placeholder="Ex: 0661234567"
                 />
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">CIN</Label>
+                <Label className="text-sm">CIN</Label>
                 <Input
                   value={form.cin}
                   onChange={(e) => setForm({ ...form, cin: e.target.value })}
-                  className="mt-1 bg-secondary border-border focus:border-primary"
+                  className="mt-1"
                   placeholder="Ex: AB123456"
                 />
               </div>
-              <Button onClick={handleAdd} className="w-full font-display tracking-wider bg-primary text-primary-foreground hover:bg-primary/80">
-                ENREGISTRER
+              <Button onClick={handleAdd} className="w-full">
+                Enregistrer
               </Button>
             </div>
           </DialogContent>
@@ -98,27 +98,27 @@ export default function Members() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 bg-secondary border-border focus:border-primary"
+          className="pl-10"
           placeholder="Rechercher par nom, CIN ou téléphone..."
         />
       </div>
 
       {/* Table */}
-      <Card className="glass-panel border-border/50 overflow-hidden">
+      <Card className="shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="font-display text-xs tracking-wider text-primary">NOM</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">TÉLÉPHONE</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">CIN</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">QR CODE</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">INSCRIPTION</TableHead>
+              <TableRow>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Nom</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Téléphone</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">CIN</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">QR Code</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Inscription</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((member) => (
-                <TableRow key={member.id} className="border-border/30 hover:bg-primary/5">
+                <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.fullName}</TableCell>
                   <TableCell>
                     <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -133,7 +133,7 @@ export default function Members() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="border-primary/30 text-primary font-mono text-xs gap-1">
+                    <Badge variant="secondary" className="font-mono text-xs gap-1">
                       <QrCode className="w-3 h-3" />
                       {member.qrCode}
                     </Badge>

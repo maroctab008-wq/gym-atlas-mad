@@ -6,9 +6,9 @@ import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { Banknote, CreditCard, ArrowRightLeft } from 'lucide-react';
 
 const methodConfig = {
-  cash: { label: 'Espèces', icon: Banknote, className: 'bg-neon-green/10 text-neon-green border-neon-green/30' },
+  cash: { label: 'Espèces', icon: Banknote, className: 'bg-success/10 text-success border-success/30' },
   tpe: { label: 'TPE', icon: CreditCard, className: 'bg-primary/10 text-primary border-primary/30' },
-  transfer: { label: 'Virement', icon: ArrowRightLeft, className: 'bg-accent/10 text-accent border-accent/30' },
+  transfer: { label: 'Virement', icon: ArrowRightLeft, className: 'bg-info/10 text-info border-info/30' },
 };
 
 export default function Payments() {
@@ -19,7 +19,7 @@ export default function Payments() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold tracking-wider text-neon-cyan">PAIEMENTS</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Paiements</h1>
         <p className="text-muted-foreground text-sm mt-1">Historique des transactions</p>
       </div>
 
@@ -30,14 +30,14 @@ export default function Payments() {
           { label: 'TPE', amount: totalTPE, ...methodConfig.tpe },
           { label: 'Virement', amount: totalTransfer, ...methodConfig.transfer },
         ].map((item) => (
-          <Card key={item.label} className="glass-panel border-border/50">
+          <Card key={item.label} className="shadow-sm">
             <CardContent className="p-5 flex items-center gap-4">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.className.split(' ')[0]}`}>
                 <item.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">{item.label}</p>
-                <p className="text-xl font-display font-bold">{formatMAD(item.amount)}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{item.label}</p>
+                <p className="text-xl font-semibold">{formatMAD(item.amount)}</p>
               </div>
             </CardContent>
           </Card>
@@ -45,22 +45,22 @@ export default function Payments() {
       </div>
 
       {/* Table */}
-      <Card className="glass-panel border-border/50 overflow-hidden">
+      <Card className="shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="font-display text-xs tracking-wider text-primary">DATE</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">MEMBRE</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">MONTANT</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">MÉTHODE</TableHead>
+              <TableRow>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Date</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Membre</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Montant</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Méthode</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {mockPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((payment) => {
                 const mc = methodConfig[payment.method];
                 return (
-                  <TableRow key={payment.id} className="border-border/30 hover:bg-primary/5">
+                  <TableRow key={payment.id}>
                     <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
                     <TableCell className="font-medium">{payment.memberName}</TableCell>
                     <TableCell className="font-mono font-semibold">{formatMAD(payment.amountMAD)}</TableCell>

@@ -6,26 +6,26 @@ import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { PLANS } from '@/types/gym';
 
 const statusConfig = {
-  active: { label: 'Actif', className: 'bg-neon-green/10 text-neon-green border-neon-green/30' },
-  expired: { label: 'Expiré', className: 'bg-neon-red/10 text-neon-red border-neon-red/30' },
-  pending: { label: 'En Attente', className: 'bg-neon-orange/10 text-neon-orange border-neon-orange/30' },
+  active: { label: 'Actif', className: 'bg-success/10 text-success border-success/30' },
+  expired: { label: 'Expiré', className: 'bg-destructive/10 text-destructive border-destructive/30' },
+  pending: { label: 'En Attente', className: 'bg-warning/10 text-warning border-warning/30' },
 };
 
 export default function Subscriptions() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold tracking-wider text-neon-cyan">ABONNEMENTS</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Abonnements</h1>
         <p className="text-muted-foreground text-sm mt-1">Gestion des plans et statuts</p>
       </div>
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {Object.entries(PLANS).map(([key, plan]) => (
-          <Card key={key} className="glass-panel border-primary/20 hover:neon-glow transition-all">
+          <Card key={key} className="shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-5 text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-mono">{plan.label}</p>
-              <p className="text-3xl font-display font-bold text-primary mt-2">{formatMAD(plan.priceMAD)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{plan.label}</p>
+              <p className="text-3xl font-semibold text-primary mt-2">{formatMAD(plan.priceMAD)}</p>
               <p className="text-xs text-muted-foreground mt-1">{plan.months} mois</p>
             </CardContent>
           </Card>
@@ -33,18 +33,18 @@ export default function Subscriptions() {
       </div>
 
       {/* Table */}
-      <Card className="glass-panel border-border/50 overflow-hidden">
+      <Card className="shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="font-display text-xs tracking-wider text-primary">MEMBRE</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">PLAN</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">STATUT</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">DÉBUT</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">FIN</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">PAYÉ</TableHead>
-                <TableHead className="font-display text-xs tracking-wider text-primary">RESTE</TableHead>
+              <TableRow>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Membre</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Plan</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Statut</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Début</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Fin</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Payé</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -52,9 +52,9 @@ export default function Subscriptions() {
                 const st = statusConfig[sub.status];
                 const remaining = sub.amountMAD - sub.paidMAD;
                 return (
-                  <TableRow key={sub.id} className="border-border/30 hover:bg-primary/5">
+                  <TableRow key={sub.id}>
                     <TableCell className="font-medium">{sub.memberName}</TableCell>
-                    <TableCell className="font-mono text-sm">{PLANS[sub.plan].label}</TableCell>
+                    <TableCell className="text-sm">{PLANS[sub.plan].label}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={st.className}>{st.label}</Badge>
                     </TableCell>
@@ -63,9 +63,9 @@ export default function Subscriptions() {
                     <TableCell className="font-mono text-sm">{formatMAD(sub.paidMAD)}</TableCell>
                     <TableCell>
                       {remaining > 0 ? (
-                        <span className="font-mono text-sm text-neon-orange">{formatMAD(remaining)}</span>
+                        <span className="font-mono text-sm text-warning">{formatMAD(remaining)}</span>
                       ) : (
-                        <span className="font-mono text-sm text-neon-green">0 MAD</span>
+                        <span className="font-mono text-sm text-success">0 MAD</span>
                       )}
                     </TableCell>
                   </TableRow>

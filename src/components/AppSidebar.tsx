@@ -26,18 +26,18 @@ export function AppSidebar() {
   return (
     <aside
       className={`${
-        collapsed ? 'w-16' : 'w-64'
+        collapsed ? 'w-16' : 'w-60'
       } min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 relative`}
     >
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3 border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center neon-glow flex-shrink-0">
-          <Dumbbell className="w-5 h-5 text-primary" />
+      <div className="h-14 px-4 flex items-center gap-3 border-b border-sidebar-border">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+          <Dumbbell className="w-4 h-4 text-primary-foreground" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <h1 className="font-display text-sm font-bold text-primary tracking-wider">CYBERGYM</h1>
-            <p className="text-[10px] text-muted-foreground font-mono tracking-widest">MANAGEMENT</p>
+            <h1 className="text-sm font-semibold text-foreground tracking-tight">GymManager</h1>
+            <p className="text-[10px] text-muted-foreground">Gestion de salle</p>
           </div>
         )}
       </div>
@@ -45,38 +45,36 @@ export function AppSidebar() {
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-16 w-6 h-6 rounded-full bg-secondary border border-border flex items-center justify-center hover:bg-primary/20 transition-colors z-10"
+        className="absolute -right-3 top-16 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center hover:bg-accent transition-colors z-10"
       >
         {collapsed ? (
-          <ChevronRight className="w-3 h-3 text-primary" />
+          <ChevronRight className="w-3 h-3 text-muted-foreground" />
         ) : (
-          <ChevronLeft className="w-3 h-3 text-primary" />
+          <ChevronLeft className="w-3 h-3 text-muted-foreground" />
         )}
       </button>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-2 space-y-0.5 mt-2">
         {navItems.map((item) => (
           <NavLink
             key={item.url}
             to={item.url}
             end={item.url === '/'}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 group"
-            activeClassName="bg-primary/10 text-primary neon-glow"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-150 text-sm"
+            activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
           >
-            <item.icon className="w-5 h-5 flex-shrink-0 group-hover:text-primary transition-colors" />
-            {!collapsed && (
-              <span className="text-sm font-medium tracking-wide">{item.title}</span>
-            )}
+            <item.icon className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>{item.title}</span>}
           </NavLink>
         ))}
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-sidebar-border">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full">
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Déconnexion</span>}
+      <div className="p-2 border-t border-sidebar-border">
+        <button className="flex items-center gap-3 px-3 py-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full text-sm">
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>Déconnexion</span>}
         </button>
       </div>
     </aside>

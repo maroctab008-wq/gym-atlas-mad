@@ -44,38 +44,38 @@ export default function LiveEntry() {
   };
 
   const statusStyles = {
-    granted: { bg: 'bg-neon-green/5 border-neon-green/40 neon-glow-green', icon: CheckCircle2, iconClass: 'text-neon-green', textClass: 'text-neon-green' },
-    expired: { bg: 'bg-neon-red/5 border-neon-red/40 neon-glow-red', icon: XCircle, iconClass: 'text-neon-red', textClass: 'text-neon-red' },
-    balance_due: { bg: 'bg-neon-orange/5 border-neon-orange/40 neon-glow-orange', icon: AlertTriangle, iconClass: 'text-neon-orange', textClass: 'text-neon-orange' },
+    granted: { bg: 'bg-success/5 border-success/40', icon: CheckCircle2, iconClass: 'text-success', textClass: 'text-success' },
+    expired: { bg: 'bg-destructive/5 border-destructive/40', icon: XCircle, iconClass: 'text-destructive', textClass: 'text-destructive' },
+    balance_due: { bg: 'bg-warning/5 border-warning/40', icon: AlertTriangle, iconClass: 'text-warning', textClass: 'text-warning' },
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold tracking-wider text-neon-cyan">ENTRÉE LIVE</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Entrée Live</h1>
         <p className="text-muted-foreground text-sm mt-1">Simulez un scan QR pour contrôler l'accès</p>
       </div>
 
-      <Card className="glass-panel border-border/50 max-w-lg mx-auto">
+      <Card className="shadow-sm max-w-lg mx-auto">
         <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-2 p-4 rounded-lg bg-secondary/50 border border-border/30">
-            <ScanLine className="w-6 h-6 text-primary animate-pulse-neon" />
-            <p className="text-sm text-muted-foreground font-mono">Scanner QR Code</p>
+          <div className="flex items-center gap-2 p-4 rounded-lg bg-secondary">
+            <ScanLine className="w-6 h-6 text-primary" />
+            <p className="text-sm text-muted-foreground">Scanner QR Code</p>
           </div>
           <div className="flex gap-2">
             <Input
               value={qrInput}
               onChange={(e) => setQrInput(e.target.value)}
               placeholder="Entrez le code QR (ex: QR-M1-2024)"
-              className="bg-secondary border-border focus:border-primary font-mono"
+              className="font-mono"
               onKeyDown={(e) => e.key === 'Enter' && handleScan()}
             />
             <Button
               onClick={handleScan}
               disabled={!qrInput || scanning}
-              className="font-display tracking-wider text-xs bg-primary text-primary-foreground hover:bg-primary/80 neon-glow px-6"
+              className="px-6"
             >
-              {scanning ? 'SCAN...' : 'VÉRIFIER'}
+              {scanning ? 'Scan...' : 'Vérifier'}
             </Button>
           </div>
 
@@ -94,13 +94,13 @@ export default function LiveEntry() {
               return <Icon className={`w-16 h-16 mx-auto ${statusStyles[scanResult.status].iconClass}`} />;
             })()}
             <div>
-              <h2 className={`text-xl font-display font-bold tracking-wider ${statusStyles[scanResult.status].textClass}`}>
+              <h2 className={`text-xl font-semibold ${statusStyles[scanResult.status].textClass}`}>
                 {scanResult.status === 'granted' ? 'ACCÈS AUTORISÉ' : scanResult.status === 'expired' ? 'ACCÈS REFUSÉ' : 'SOLDE DÛ'}
               </h2>
               <p className="text-lg font-medium mt-2">{scanResult.memberName}</p>
               <p className="text-sm text-muted-foreground mt-1">{scanResult.message}</p>
               {scanResult.balanceDue && (
-                <p className="text-lg font-display font-bold text-neon-orange mt-2">
+                <p className="text-lg font-semibold text-warning mt-2">
                   {formatMAD(scanResult.balanceDue)} restant
                 </p>
               )}

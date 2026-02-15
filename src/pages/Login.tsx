@@ -13,46 +13,45 @@ export default function Login() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login — in production this would use auth
     navigate('/');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background cyber-grid p-4">
-      <Card className="w-full max-w-md glass-panel border-primary/20 neon-glow">
+    <div className="min-h-screen flex items-center justify-center bg-secondary/30 p-4">
+      <Card className="w-full max-w-md shadow-lg">
         <CardContent className="p-8 space-y-6">
           <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto neon-glow">
-              <Dumbbell className="w-8 h-8 text-primary" />
+            <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mx-auto">
+              <Dumbbell className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-display font-bold tracking-widest text-primary">CYBERGYM</h1>
+            <h1 className="text-xl font-semibold text-foreground">GymManager</h1>
             <p className="text-sm text-muted-foreground">Connexion Administrateur</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
+              <Label className="text-sm">Email</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 bg-secondary border-border focus:border-primary"
-                placeholder="admin@cybergym.ma"
+                className="mt-1"
+                placeholder="admin@gymmanager.ma"
               />
             </div>
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mot de passe</Label>
+              <Label className="text-sm">Mot de passe</Label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 bg-secondary border-border focus:border-primary"
+                className="mt-1"
                 placeholder="••••••••"
               />
             </div>
-            <Button type="submit" className="w-full font-display tracking-widest bg-primary text-primary-foreground hover:bg-primary/80 neon-glow gap-2">
+            <Button type="submit" className="w-full gap-2">
               <Lock className="w-4 h-4" />
-              CONNEXION
+              Connexion
             </Button>
           </form>
         </CardContent>
