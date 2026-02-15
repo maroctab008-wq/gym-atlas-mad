@@ -148,27 +148,33 @@ export type Database = {
       payments: {
         Row: {
           amount_mad: number
+          cheque_number: string | null
           created_at: string
           date: string
           id: string
+          invoice_number: string | null
           member_id: string
           method: string
           subscription_id: string | null
         }
         Insert: {
           amount_mad: number
+          cheque_number?: string | null
           created_at?: string
           date?: string
           id?: string
+          invoice_number?: string | null
           member_id: string
           method: string
           subscription_id?: string | null
         }
         Update: {
           amount_mad?: number
+          cheque_number?: string | null
           created_at?: string
           date?: string
           id?: string
+          invoice_number?: string | null
           member_id?: string
           method?: string
           subscription_id?: string | null
