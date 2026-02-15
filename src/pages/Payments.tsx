@@ -1,47 +1,83 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { mockPayments } from '@/data/mockData';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Banknote, CreditCard, ArrowRightLeft } from 'lucide-react';
+import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import NewPaymentDialog from '@/components/NewPaymentDialog';
 
-const methodConfig = {
+const methodConfig: Record<string, { label: string; icon: any; className: string }> = {
   cash: { label: 'Espèces', icon: Banknote, className: 'bg-success/10 text-success border-success/30' },
   tpe: { label: 'TPE', icon: CreditCard, className: 'bg-primary/10 text-primary border-primary/30' },
+  cheque: { label: 'Chèque', icon: FileCheck, className: 'bg-chart-4/10 text-chart-4 border-chart-4/30' },
   transfer: { label: 'Virement', icon: ArrowRightLeft, className: 'bg-info/10 text-info border-info/30' },
 };
 
+interface PaymentRow {
+  id: string;
+  amount_mad: number;
+  method: string;
+  date: string;
+  invoice_number: string | null;
+  cheque_number: string | null;
+  members: { full_name: string } | null;
+}
+
 export default function Payments() {
-  const totalCash = mockPayments.filter(p => p.method === 'cash').reduce((s, p) => s + p.amountMAD, 0);
-  const totalTPE = mockPayments.filter(p => p.method === 'tpe').reduce((s, p) => s + p.amountMAD, 0);
-  const totalTransfer = mockPayments.filter(p => p.method === 'transfer').reduce((s, p) => s + p.amountMAD, 0);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPayments = async () => {
+    const { data } = await supabase
+      .from('payments')
+      .select('id, amount_mad, method, date, invoice_number, cheque_number, members(full_name)')
+      .order('date', { ascending: false });
+    if (data) setPayments(data as PaymentRow[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchPayments(); }, []);
+
+  const totalByMethod = (m: string) => payments.filter(p => p.method === m).reduce((s, p) => s + p.amount_mad, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Paiements</h1>
-        <p className="text-muted-foreground text-sm mt-1">Historique des transactions</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Paiements</h1>
+          <p className="text-muted-foreground text-sm mt-1">Historique des transactions</p>
+        </div>
+        <NewPaymentDialog onSuccess={fetchPayments} />
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Espèces', amount: totalCash, ...methodConfig.cash },
-          { label: 'TPE', amount: totalTPE, ...methodConfig.tpe },
-          { label: 'Virement', amount: totalTransfer, ...methodConfig.transfer },
-        ].map((item) => (
-          <Card key={item.label} className="shadow-sm">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.className.split(' ')[0]}`}>
-                <item.icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{item.label}</p>
-                <p className="text-xl font-semibold">{formatMAD(item.amount)}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {(['cash', 'tpe', 'cheque', 'transfer'] as const).map((key) => {
+          const mc = methodConfig[key];
+          const Icon = mc.icon;
+          return (
+            <Card key={key} className="shadow-sm">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mc.className.split(' ')[0]}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{mc.label}</p>
+                  <p className="text-xl font-semibold">{formatMAD(totalByMethod(key))}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Table */}
@@ -54,25 +90,38 @@ export default function Payments() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Membre</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Montant</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Méthode</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Facture</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((payment) => {
-                const mc = methodConfig[payment.method];
-                return (
-                  <TableRow key={payment.id}>
-                    <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
-                    <TableCell className="font-medium">{payment.memberName}</TableCell>
-                    <TableCell className="font-mono font-semibold">{formatMAD(payment.amountMAD)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`${mc.className} gap-1`}>
-                        <mc.icon className="w-3 h-3" />
-                        {mc.label}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {payments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Aucun paiement enregistré
+                  </TableCell>
+                </TableRow>
+              ) : (
+                payments.map((payment) => {
+                  const mc = methodConfig[payment.method] || methodConfig.cash;
+                  const Icon = mc.icon;
+                  return (
+                    <TableRow key={payment.id}>
+                      <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
+                      <TableCell className="font-medium">{payment.members?.full_name || '—'}</TableCell>
+                      <TableCell className="font-mono font-semibold">{formatMAD(payment.amount_mad)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`${mc.className} gap-1`}>
+                          <Icon className="w-3 h-3" />
+                          {mc.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        {payment.invoice_number || '—'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
