@@ -53,6 +53,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
   const [method, setMethod] = useState('');
   const [chequeNumber, setChequeNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [installmentPlan, setInstallmentPlan] = useState('total');
 
   useEffect(() => {
     if (!open) return;
@@ -100,6 +101,8 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     setSaving(true);
     const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
 
+    const installmentTotal = installmentPlan === '2x' ? 2 : installmentPlan === '3x' ? 3 : 1;
+
     const { error } = await supabase.from('payments').insert({
       member_id: selectedMemberId,
       subscription_id: selectedSubId || null,
@@ -108,6 +111,9 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
       date: paymentDate,
       cheque_number: method === 'cheque' ? chequeNumber : null,
       invoice_number: invoiceNumber,
+      installment_plan: installmentPlan,
+      installment_number: 1,
+      installment_total: installmentTotal,
     });
 
     if (error) {
@@ -169,6 +175,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     setMethod('');
     setChequeNumber('');
     setPaymentDate(new Date().toISOString().split('T')[0]);
+    setInstallmentPlan('total');
   };
 
   return (
@@ -225,6 +232,18 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
               )}
             </div>
           )}
+
+          <div>
+            <Label className="text-sm">Plan de paiement</Label>
+            <Select value={installmentPlan} onValueChange={setInstallmentPlan}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="total">Total (1 fois)</SelectItem>
+                <SelectItem value="2x">2 fois</SelectItem>
+                <SelectItem value="3x">3 fois</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div>
             <Label className="text-sm">Montant (MAD)</Label>

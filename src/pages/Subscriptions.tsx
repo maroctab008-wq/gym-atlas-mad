@@ -1,17 +1,55 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { mockSubscriptions } from '@/data/mockData';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { PLANS } from '@/types/gym';
+import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import EditSubscriptionDialog from '@/components/EditSubscriptionDialog';
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; className: string }> = {
   active: { label: 'Actif', className: 'bg-success/10 text-success border-success/30' },
   expired: { label: 'Expiré', className: 'bg-destructive/10 text-destructive border-destructive/30' },
   pending: { label: 'En Attente', className: 'bg-warning/10 text-warning border-warning/30' },
 };
 
+interface SubRow {
+  id: string;
+  plan: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  amount_mad: number;
+  paid_mad: number;
+  members: { full_name: string } | null;
+}
+
 export default function Subscriptions() {
+  const { role } = useAuth();
+  const [subs, setSubs] = useState<SubRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSubs = async () => {
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('id, plan, status, start_date, end_date, amount_mad, paid_mad, members(full_name)')
+      .order('created_at', { ascending: false });
+    if (data) setSubs(data as SubRow[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchSubs(); }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -45,32 +83,50 @@ export default function Subscriptions() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Fin</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Payé</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
+                {role === 'admin' && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockSubscriptions.map((sub) => {
-                const st = statusConfig[sub.status];
-                const remaining = sub.amountMAD - sub.paidMAD;
-                return (
-                  <TableRow key={sub.id}>
-                    <TableCell className="font-medium">{sub.memberName}</TableCell>
-                    <TableCell className="text-sm">{PLANS[sub.plan].label}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={st.className}>{st.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.startDate)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.endDate)}</TableCell>
-                    <TableCell className="font-mono text-sm">{formatMAD(sub.paidMAD)}</TableCell>
-                    <TableCell>
-                      {remaining > 0 ? (
-                        <span className="font-mono text-sm text-warning">{formatMAD(remaining)}</span>
-                      ) : (
-                        <span className="font-mono text-sm text-success">0 MAD</span>
+              {subs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={role === 'admin' ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                    Aucun abonnement
+                  </TableCell>
+                </TableRow>
+              ) : (
+                subs.map((sub) => {
+                  const st = statusConfig[sub.status] || statusConfig.pending;
+                  const remaining = sub.amount_mad - sub.paid_mad;
+                  const memberName = sub.members?.full_name || '—';
+                  return (
+                    <TableRow key={sub.id}>
+                      <TableCell className="font-medium">{memberName}</TableCell>
+                      <TableCell className="text-sm">{PLANS[sub.plan]?.label || sub.plan}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={st.className}>{st.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.start_date)}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.end_date)}</TableCell>
+                      <TableCell className="font-mono text-sm">{formatMAD(sub.paid_mad)}</TableCell>
+                      <TableCell>
+                        {remaining > 0 ? (
+                          <span className="font-mono text-sm text-warning">{formatMAD(remaining)}</span>
+                        ) : (
+                          <span className="font-mono text-sm text-success">0 MAD</span>
+                        )}
+                      </TableCell>
+                      {role === 'admin' && (
+                        <TableCell>
+                          <EditSubscriptionDialog
+                            sub={{ ...sub, member_name: memberName }}
+                            onSuccess={fetchSubs}
+                          />
+                        </TableCell>
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
