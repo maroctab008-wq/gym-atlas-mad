@@ -106,6 +106,39 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount_mad: number
+          category: string
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          receipt_url: string | null
+        }
+        Insert: {
+          amount_mad: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+        }
+        Update: {
+          amount_mad?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           cin: string
@@ -152,6 +185,9 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          installment_number: number | null
+          installment_plan: string | null
+          installment_total: number | null
           invoice_number: string | null
           member_id: string
           method: string
@@ -163,6 +199,9 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          installment_number?: number | null
+          installment_plan?: string | null
+          installment_total?: number | null
           invoice_number?: string | null
           member_id: string
           method: string
@@ -174,6 +213,9 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          installment_number?: number | null
+          installment_plan?: string | null
+          installment_total?: number | null
           invoice_number?: string | null
           member_id?: string
           method?: string
