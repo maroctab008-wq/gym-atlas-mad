@@ -53,9 +53,13 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     const plan = plans.find(p => p.id === planId);
     if (!plan) { setSaving(false); return; }
 
+    // Map plan months to DB constraint values
+    const planKeyMap: Record<number, string> = { 1: 'monthly', 3: 'quarterly', 12: 'annual' };
+    const planKey = planKeyMap[plan.months] || 'monthly';
+
     const { error } = await supabase.from('subscriptions').insert({
       member_id: memberId,
-      plan: plan.label,
+      plan: planKey,
       start_date: startDate,
       end_date: endDate,
       amount_mad: plan.price_mad,
