@@ -1,1 +1,10 @@
 project_id = "twjtchqgnnadfjjcftqv"
+
+[functions.create-staff-user]
+verify_jwt = false
+
+[functions.admin-change-password]
+verify_jwt = false
+
+[functions.create-admin]
+verify_jwt = false
