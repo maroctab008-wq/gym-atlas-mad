@@ -4,9 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, TrendingUp, AlertTriangle, Activity, Receipt, DollarSign, Loader2 } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2 } from 'lucide-react';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface PaymentRow { id: string; amount_mad: number; date: string; method: string; members: { full_name: string } | null; }
@@ -24,6 +25,7 @@ const attendanceData = [
 ];
 
 export default function Dashboard() {
+  const { role } = useAuth();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -62,16 +64,55 @@ export default function Dashboard() {
   const totalUnpaid = unpaidMembers.reduce((sum, s) => sum + (s.amount_mad - s.paid_mad), 0);
 
   const monthlyIncomeData = useMemo(() => {
-    const months: Record<string, number> = {};
-    payments.forEach(p => {
-      const m = p.date.substring(0, 7);
-      months[m] = (months[m] || 0) + p.amount_mad;
-    });
-    return Object.entries(months).sort().slice(-6).map(([month, income]) => ({ month, income }));
-  }, [payments]);
+    const months: Record<string, { income: number; expenses: number }> = {};
+    payments.forEach(p => { const m = p.date.substring(0, 7); if (!months[m]) months[m] = { income: 0, expenses: 0 }; months[m].income += p.amount_mad; });
+    expenses.forEach(e => { const m = e.date.substring(0, 7); if (!months[m]) months[m] = { income: 0, expenses: 0 }; months[m].expenses += e.amount_mad; });
+    return Object.entries(months).sort().slice(-6).map(([month, data]) => ({ month, ...data }));
+  }, [payments, expenses]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  // Staff sees only attendance overview, no financial data
+  if (role !== 'admin') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Tableau de Bord</h1>
+          <p className="text-muted-foreground text-sm mt-1">Vue d'ensemble</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Membres Actifs</p>
+                  <p className="text-2xl font-semibold mt-1">{totalActiveMembers}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-primary bg-primary/10">
+                  <Users className="w-5 h-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Fréquentation Hebdomadaire</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={attendanceData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                <Bar dataKey="entries" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const statsCards = [
@@ -101,7 +142,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {statsCards.map((stat) => (
           <Card key={stat.title} className="shadow-sm">
@@ -120,12 +160,9 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Fréquentation Hebdomadaire</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Fréquentation Hebdomadaire</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={attendanceData}>
@@ -140,30 +177,27 @@ export default function Dashboard() {
         </Card>
 
         <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Revenus Mensuels (MAD)</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Revenus vs Dépenses (Mensuels)</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={monthlyIncomeData}>
+              <BarChart data={monthlyIncomeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} formatter={(value: number) => [formatMAD(value), 'Revenus']} />
-                <Area type="monotone" dataKey="income" stroke="hsl(var(--success))" fill="hsl(var(--success) / 0.1)" strokeWidth={2} />
-              </AreaChart>
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} formatter={(value: number) => [formatMAD(value)]} />
+                <Bar dataKey="income" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Revenus" />
+                <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Dépenses" />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Income & Expenses side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-success" />
-              Revenus Récents
+              <TrendingUp className="w-4 h-4 text-success" />Revenus Récents
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -185,8 +219,7 @@ export default function Dashboard() {
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-destructive" />
-              Dépenses Récentes
+              <Receipt className="w-4 h-4 text-destructive" />Dépenses Récentes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -206,13 +239,11 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Unpaid Members */}
       {unpaidMembers.length > 0 && (
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-warning">
-              <AlertTriangle className="w-4 h-4" />
-              Membres avec Solde Impayé
+              <AlertTriangle className="w-4 h-4" />Membres avec Solde Impayé
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -221,13 +252,9 @@ export default function Dashboard() {
                 <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
                   <div>
                     <p className="font-medium text-sm">{sub.members?.full_name || '—'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {sub.plan === 'monthly' ? 'Mensuel' : sub.plan === 'quarterly' ? 'Trimestriel' : 'Annuel'} · Expire le {formatDateFR(sub.end_date)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Expire le {formatDateFR(sub.end_date)}</p>
                   </div>
-                  <Badge variant="outline" className="border-warning/50 text-warning font-mono text-xs">
-                    {formatMAD(sub.amount_mad - sub.paid_mad)}
-                  </Badge>
+                  <Badge variant="outline" className="border-warning/50 text-warning font-mono text-xs">{formatMAD(sub.amount_mad - sub.paid_mad)}</Badge>
                 </div>
               ))}
             </div>

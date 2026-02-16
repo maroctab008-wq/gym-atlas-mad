@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { generateInvoicePDF } from '@/lib/generateInvoicePDF';
 import { formatDateFR } from '@/lib/formatters';
-import { PLANS } from '@/types/gym';
+import { usePlans } from '@/hooks/usePlans';
 
 interface MemberOption {
   id: string;
@@ -40,6 +40,7 @@ interface BrandingData {
 export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSuccess?: () => void; triggerClassName?: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { plansMap } = usePlans();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -146,7 +147,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     // Generate PDF
     const member = members.find(m => m.id === selectedMemberId);
     const planKey = selectedSub?.plan || 'monthly';
-    const planConfig = PLANS[planKey] || { label: planKey, months: 1, priceMAD: amountNum };
+    const planConfig = plansMap[planKey] || { label: planKey, months: 1, priceMAD: amountNum };
 
     generateInvoicePDF({
       invoiceNumber,
@@ -217,11 +218,10 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Lier à un abonnement" /></SelectTrigger>
                 <SelectContent>
                   {subscriptions.map(s => {
-                    const plan = PLANS[s.plan];
                     const rest = s.amount_mad - s.paid_mad;
                     return (
                       <SelectItem key={s.id} value={s.id}>
-                        {plan?.label || s.plan} — Reste: {rest.toLocaleString('fr-FR')} MAD
+                        {plansMap[s.plan]?.label || s.plan} — Reste: {rest.toLocaleString('fr-FR')} MAD
                       </SelectItem>
                     );
                   })}
