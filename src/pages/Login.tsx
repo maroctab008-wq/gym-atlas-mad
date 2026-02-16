@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dumbbell, Lock, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dumbbell, Lock, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
@@ -23,9 +23,9 @@ export default function Login() {
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      toast({ title: 'Erreur de connexion', description: error, variant: 'destructive' });
+      toast({ title: "Erreur de connexion", description: error, variant: "destructive" });
     } else {
-      navigate('/');
+      navigate("/");
     }
   };
 
@@ -49,8 +49,8 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
-              placeholder="Compte & utilisateur"
-            />
+                placeholder="exemple@gmail.com"
+              />
             </div>
             <div>
               <Label className="text-sm">Mot de passe</Label>
