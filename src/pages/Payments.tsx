@@ -11,6 +11,7 @@ import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2, Receipt, Pencil, FileText, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import NewPaymentDialog from '@/components/NewPaymentDialog';
 import ExpenseDialog from '@/components/ExpenseDialog';
 import EditPaymentDialog from '@/components/EditPaymentDialog';
@@ -55,6 +56,7 @@ interface BrandingData {
 
 export default function Payments() {
   const { role } = useAuth();
+  const { can } = usePermissions();
   const { plansMap } = usePlans();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -162,12 +164,12 @@ export default function Payments() {
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Méthode</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Échéancier</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Facture</TableHead>
-                    {role === 'admin' && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
+                    {can('payments_create') && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.length === 0 ? (
-                    <TableRow><TableCell colSpan={role === 'admin' ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement enregistré</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={can('payments_create') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement enregistré</TableCell></TableRow>
                   ) : (
                     payments.map((payment) => {
                       const mc = methodConfig[payment.method] || methodConfig.cash;
@@ -185,7 +187,7 @@ export default function Payments() {
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{planLabel}</TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{payment.invoice_number || '—'}</TableCell>
-                          {role === 'admin' && (
+                          {can('payments_create') && (
                             <TableCell>
                               <div className="flex gap-1">
                                 <EditPaymentDialog payment={payment} onSuccess={fetchData} />

@@ -10,6 +10,7 @@ import { UserPlus, Search, QrCode, Phone, CreditCard as CINIcon, Loader2 } from 
 import { formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import EditMemberDialog from '@/components/EditMemberDialog';
 
@@ -34,6 +35,7 @@ function calculateAge(dob: string): number {
 
 export default function Members() {
   const { role, user } = useAuth();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,7 @@ export default function Members() {
           <h1 className="text-2xl font-semibold text-foreground">Membres</h1>
           <p className="text-muted-foreground text-sm mt-1">{members.length} membres enregistrés</p>
         </div>
-        {(role === 'admin' || role === 'staff') && (
+        {can('members_add') && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2"><UserPlus className="w-4 h-4" />Nouveau membre</Button>
@@ -128,12 +130,12 @@ export default function Members() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Âge</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">QR Code</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Inscription</TableHead>
-                {role === 'admin' && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
+                {can('members_edit') && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={role === 'admin' ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun membre trouvé</TableCell></TableRow>
+                <TableRow><TableCell colSpan={can('members_edit') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun membre trouvé</TableCell></TableRow>
               ) : (
                 filtered.map((member) => {
                   const age = calculateAge(member.date_of_birth);
@@ -153,7 +155,7 @@ export default function Members() {
                       </TableCell>
                       <TableCell><Badge variant="secondary" className="font-mono text-xs gap-1"><QrCode className="w-3 h-3" />{member.qr_code}</Badge></TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(member.join_date)}</TableCell>
-                      {role === 'admin' && (
+                      {can('members_edit') && (
                         <TableCell>
                           <EditMemberDialog member={member} onSuccess={fetchMembers} />
                         </TableCell>

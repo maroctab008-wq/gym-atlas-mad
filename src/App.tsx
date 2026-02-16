@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
@@ -21,14 +22,14 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function StaffRedirect({ children }: { children: React.ReactNode }) {
-  const { role } = useAuth();
-  if (role === 'staff') return <Navigate to="/members" replace />;
+  const { can } = usePermissions();
+  if (!can('view_dashboard_kpis')) return <Navigate to="/members" replace />;
   return <>{children}</>;
 }
 
-function AdminOnly({ children }: { children: React.ReactNode }) {
-  const { role } = useAuth();
-  if (role !== 'admin') return <Navigate to="/members" replace />;
+function PermissionGuard({ permission, children }: { permission: string; children: React.ReactNode }) {
+  const { can } = usePermissions();
+  if (!can(permission as any)) return <Navigate to="/members" replace />;
   return <>{children}</>;
 }
 
@@ -45,12 +46,12 @@ const App = () => (
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/" element={<StaffRedirect><Dashboard /></StaffRedirect>} />
                 <Route path="/members" element={<Members />} />
-                <Route path="/subscriptions" element={<AdminOnly><Subscriptions /></AdminOnly>} />
+                <Route path="/subscriptions" element={<PermissionGuard permission="payments_view"><Subscriptions /></PermissionGuard>} />
                 <Route path="/live-entry" element={<LiveEntry />} />
-                <Route path="/payments" element={<AdminOnly><Payments /></AdminOnly>} />
-                <Route path="/settings" element={<AdminOnly><Settings /></AdminOnly>} />
+                <Route path="/payments" element={<PermissionGuard permission="payments_view"><Payments /></PermissionGuard>} />
+                <Route path="/settings" element={<PermissionGuard permission="settings_access"><Settings /></PermissionGuard>} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/audit-logs" element={<AdminOnly><AuditLogs /></AdminOnly>} />
+                <Route path="/audit-logs" element={<PermissionGuard permission="settings_access"><AuditLogs /></PermissionGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
