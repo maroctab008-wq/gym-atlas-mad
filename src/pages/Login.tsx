@@ -37,8 +37,8 @@ export default function Login() {
             <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mx-auto">
               <Dumbbell className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-semibold text-foreground">GymManager</h1>
-            <p className="text-sm text-muted-foreground">Connexion Administrateur</p>
+            <h1 className="text-xl font-semibold text-foreground">GymManager </h1>
+            <p className="text-sm text-muted-foreground">by MediaTechnology.ma</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -49,7 +49,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
-                placeholder="exemple@gmail.com"
+                placeholder="Compte & utilisateur"
               />
             </div>
             <div>
