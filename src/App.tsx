@@ -2,9 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
@@ -20,6 +20,18 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function StaffRedirect({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth();
+  if (role === 'staff') return <Navigate to="/members" replace />;
+  return <>{children}</>;
+}
+
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth();
+  if (role !== 'admin') return <Navigate to="/members" replace />;
+  return <>{children}</>;
+}
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <QueryClientProvider client={queryClient}>
@@ -31,14 +43,14 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<StaffRedirect><Dashboard /></StaffRedirect>} />
                 <Route path="/members" element={<Members />} />
-                <Route path="/subscriptions" element={<Subscriptions />} />
+                <Route path="/subscriptions" element={<AdminOnly><Subscriptions /></AdminOnly>} />
                 <Route path="/live-entry" element={<LiveEntry />} />
-                <Route path="/payments" element={<Payments />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/payments" element={<AdminOnly><Payments /></AdminOnly>} />
+                <Route path="/settings" element={<AdminOnly><Settings /></AdminOnly>} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/audit-logs" element={<AuditLogs />} />
+                <Route path="/audit-logs" element={<AdminOnly><AuditLogs /></AdminOnly>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

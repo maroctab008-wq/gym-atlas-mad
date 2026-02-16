@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2, Receipt } from 'lucide-react';
+import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2, Receipt, Pencil, FileText, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import NewPaymentDialog from '@/components/NewPaymentDialog';
 import ExpenseDialog from '@/components/ExpenseDialog';
+import EditPaymentDialog from '@/components/EditPaymentDialog';
+import { generateInvoicePDF } from '@/lib/generateInvoicePDF';
+import { usePlans } from '@/hooks/usePlans';
 
 const methodConfig: Record<string, { label: string; icon: any; className: string }> = {
   cash: { label: 'Espèces', icon: Banknote, className: 'bg-success/10 text-success border-success/30' },
@@ -17,12 +25,8 @@ const methodConfig: Record<string, { label: string; icon: any; className: string
 };
 
 const expenseCategoryLabels: Record<string, string> = {
-  rent: 'Loyer',
-  electricity: 'Électricité',
-  salaries: 'Salaires',
-  maintenance: 'Maintenance',
-  equipment: 'Équipement',
-  other: 'Autre',
+  rent: 'Loyer', electricity: 'Électricité', salaries: 'Salaires',
+  maintenance: 'Maintenance', equipment: 'Équipement', other: 'Autre',
 };
 
 interface PaymentRow {
@@ -33,7 +37,8 @@ interface PaymentRow {
   invoice_number: string | null;
   cheque_number: string | null;
   installment_plan: string | null;
-  members: { full_name: string } | null;
+  member_id: string;
+  members: { full_name: string; cin: string } | null;
 }
 
 interface ExpenseRow {
@@ -44,32 +49,66 @@ interface ExpenseRow {
   date: string;
 }
 
+interface BrandingData {
+  gym_name: string; phone: string; website: string; address: string; ice: string; logo_url: string;
+}
+
 export default function Payments() {
+  const { role } = useAuth();
+  const { plansMap } = usePlans();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branding, setBranding] = useState<BrandingData>({ gym_name: 'GymManager', phone: '', website: '', address: '', ice: '', logo_url: '' });
+
+  // Expense filters
+  const [expStartDate, setExpStartDate] = useState('');
+  const [expEndDate, setExpEndDate] = useState('');
+  const [expCategory, setExpCategory] = useState('all');
 
   const fetchData = async () => {
-    const [paymentsRes, expensesRes] = await Promise.all([
-      supabase.from('payments').select('id, amount_mad, method, date, invoice_number, cheque_number, installment_plan, members(full_name)').order('date', { ascending: false }),
+    const [paymentsRes, expensesRes, brandingRes] = await Promise.all([
+      supabase.from('payments').select('id, amount_mad, method, date, invoice_number, cheque_number, installment_plan, member_id, members(full_name, cin)').order('date', { ascending: false }),
       supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
+      supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
     ]);
     if (paymentsRes.data) setPayments(paymentsRes.data as PaymentRow[]);
     if (expensesRes.data) setExpenses(expensesRes.data);
+    if (brandingRes.data?.value) setBranding(brandingRes.data.value as unknown as BrandingData);
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
   const totalByMethod = (m: string) => payments.filter(p => p.method === m).reduce((s, p) => s + p.amount_mad, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount_mad, 0);
+
+  const filteredExpenses = expenses.filter(e => {
+    if (expStartDate && e.date < expStartDate) return false;
+    if (expEndDate && e.date > expEndDate) return false;
+    if (expCategory !== 'all' && e.category !== expCategory) return false;
+    return true;
+  });
+  const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount_mad, 0);
+
+  const handlePrintInvoice = (payment: PaymentRow) => {
+    const planLabel = Object.values(plansMap)[0]?.label || 'Abonnement';
+    const planMonths = Object.values(plansMap)[0]?.months || 1;
+    generateInvoicePDF({
+      invoiceNumber: payment.invoice_number || `FAC-${payment.id.slice(0, 8).toUpperCase()}`,
+      date: formatDateFR(payment.date),
+      memberName: payment.members?.full_name || '—',
+      memberCIN: payment.members?.cin || '',
+      planLabel,
+      planMonths,
+      amountMAD: payment.amount_mad,
+      paymentMethod: payment.method,
+      chequeNumber: payment.method === 'cheque' ? (payment.cheque_number || undefined) : undefined,
+      branding,
+    });
+  };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
@@ -92,7 +131,6 @@ export default function Payments() {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
-          {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             {(['cash', 'tpe', 'cheque', 'transfer'] as const).map((key) => {
               const mc = methodConfig[key];
@@ -124,15 +162,12 @@ export default function Payments() {
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Méthode</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Échéancier</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Facture</TableHead>
+                    {role === 'admin' && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        Aucun paiement enregistré
-                      </TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={role === 'admin' ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement enregistré</TableCell></TableRow>
                   ) : (
                     payments.map((payment) => {
                       const mc = methodConfig[payment.method] || methodConfig.cash;
@@ -145,14 +180,21 @@ export default function Payments() {
                           <TableCell className="font-mono font-semibold">{formatMAD(payment.amount_mad)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`${mc.className} gap-1`}>
-                              <Icon className="w-3 h-3" />
-                              {mc.label}
+                              <Icon className="w-3 h-3" />{mc.label}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{planLabel}</TableCell>
-                          <TableCell className="text-xs font-mono text-muted-foreground">
-                            {payment.invoice_number || '—'}
-                          </TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground">{payment.invoice_number || '—'}</TableCell>
+                          {role === 'admin' && (
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <EditPaymentDialog payment={payment} onSuccess={fetchData} />
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintInvoice(payment)}>
+                                  <FileText className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })
@@ -164,6 +206,35 @@ export default function Payments() {
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
+          {/* Expense Filters */}
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Du</Label>
+              <Input type="date" value={expStartDate} onChange={e => setExpStartDate(e.target.value)} className="w-40 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Au</Label>
+              <Input type="date" value={expEndDate} onChange={e => setExpEndDate(e.target.value)} className="w-40 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Catégorie</Label>
+              <Select value={expCategory} onValueChange={setExpCategory}>
+                <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  {Object.entries(expenseCategoryLabels).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(expStartDate || expEndDate || expCategory !== 'all') && (
+              <Button variant="ghost" size="sm" onClick={() => { setExpStartDate(''); setExpEndDate(''); setExpCategory('all'); }}>
+                Réinitialiser
+              </Button>
+            )}
+          </div>
+
           <Card className="shadow-sm">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-destructive/10">
@@ -188,19 +259,13 @@ export default function Payments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenses.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        Aucune dépense enregistrée
-                      </TableCell>
-                    </TableRow>
+                  {filteredExpenses.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucune dépense trouvée</TableCell></TableRow>
                   ) : (
-                    expenses.map((exp) => (
+                    filteredExpenses.map((exp) => (
                       <TableRow key={exp.id}>
                         <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(exp.date)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{expenseCategoryLabels[exp.category] || exp.category}</Badge>
-                        </TableCell>
+                        <TableCell><Badge variant="outline">{expenseCategoryLabels[exp.category] || exp.category}</Badge></TableCell>
                         <TableCell className="text-sm">{exp.description || '—'}</TableCell>
                         <TableCell className="font-mono font-semibold text-destructive">{formatMAD(exp.amount_mad)}</TableCell>
                       </TableRow>

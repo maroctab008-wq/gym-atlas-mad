@@ -3,10 +3,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { PLANS } from '@/types/gym';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlans } from '@/hooks/usePlans';
 import EditSubscriptionDialog from '@/components/EditSubscriptionDialog';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -28,6 +28,7 @@ interface SubRow {
 
 export default function Subscriptions() {
   const { role } = useAuth();
+  const { plans, loading: plansLoading } = usePlans();
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,12 +43,13 @@ export default function Subscriptions() {
 
   useEffect(() => { fetchSubs(); }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+  const getPlanLabel = (planKey: string) => {
+    const found = plans.find(p => p.label.toLowerCase().replace(/\s+/g, '_') === planKey || p.label === planKey);
+    return found?.label || planKey;
+  };
+
+  if (loading || plansLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
@@ -57,20 +59,19 @@ export default function Subscriptions() {
         <p className="text-muted-foreground text-sm mt-1">Gestion des plans et statuts</p>
       </div>
 
-      {/* Plan cards */}
+      {/* Dynamic plan cards from DB */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {Object.entries(PLANS).map(([key, plan]) => (
-          <Card key={key} className="shadow-sm hover:shadow-md transition-shadow">
+        {plans.map((plan) => (
+          <Card key={plan.id} className="shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-5 text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{plan.label}</p>
-              <p className="text-3xl font-semibold text-primary mt-2">{formatMAD(plan.priceMAD)}</p>
+              <p className="text-3xl font-semibold text-primary mt-2">{formatMAD(plan.price_mad)}</p>
               <p className="text-xs text-muted-foreground mt-1">{plan.months} mois</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Table */}
       <Card className="shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
@@ -88,11 +89,7 @@ export default function Subscriptions() {
             </TableHeader>
             <TableBody>
               {subs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={role === 'admin' ? 8 : 7} className="text-center py-8 text-muted-foreground">
-                    Aucun abonnement
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={role === 'admin' ? 8 : 7} className="text-center py-8 text-muted-foreground">Aucun abonnement</TableCell></TableRow>
               ) : (
                 subs.map((sub) => {
                   const st = statusConfig[sub.status] || statusConfig.pending;
@@ -101,10 +98,8 @@ export default function Subscriptions() {
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className="font-medium">{memberName}</TableCell>
-                      <TableCell className="text-sm">{PLANS[sub.plan]?.label || sub.plan}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={st.className}>{st.label}</Badge>
-                      </TableCell>
+                      <TableCell className="text-sm">{getPlanLabel(sub.plan)}</TableCell>
+                      <TableCell><Badge variant="outline" className={st.className}>{st.label}</Badge></TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.start_date)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.end_date)}</TableCell>
                       <TableCell className="font-mono text-sm">{formatMAD(sub.paid_mad)}</TableCell>
@@ -117,10 +112,7 @@ export default function Subscriptions() {
                       </TableCell>
                       {role === 'admin' && (
                         <TableCell>
-                          <EditSubscriptionDialog
-                            sub={{ ...sub, member_name: memberName }}
-                            onSuccess={fetchSubs}
-                          />
+                          <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
                         </TableCell>
                       )}
                     </TableRow>
