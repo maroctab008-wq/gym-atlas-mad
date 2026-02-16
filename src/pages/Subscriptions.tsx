@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Filter, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlans } from '@/hooks/usePlans';
@@ -29,6 +31,8 @@ interface SubRow {
   members: { full_name: string } | null;
 }
 
+type QuickFilter = 'all' | 'active' | 'expired' | 'ending_soon';
+
 export default function Subscriptions() {
   const { role } = useAuth();
   const { plans, loading: plansLoading } = usePlans();
@@ -36,6 +40,9 @@ export default function Subscriptions() {
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
 
   const fetchSubs = async () => {
     const { data } = await supabase
@@ -53,18 +60,55 @@ export default function Subscriptions() {
     return found?.label || planKey;
   };
 
+  const filtered = useMemo(() => {
+    const today = new Date();
+    const twoDaysLater = new Date();
+    twoDaysLater.setDate(today.getDate() + 2);
+
+    return subs.filter((sub) => {
+      // Quick status filter
+      if (quickFilter === 'active' && sub.status !== 'active') return false;
+      if (quickFilter === 'expired' && sub.status !== 'expired') return false;
+      if (quickFilter === 'ending_soon') {
+        if (sub.status !== 'active') return false;
+        const end = new Date(sub.end_date);
+        if (end > twoDaysLater) return false;
+      }
+
+      // Date range filter on end_date
+      if (dateFrom) {
+        const endDate = new Date(sub.end_date);
+        const from = new Date(dateFrom);
+        if (endDate < from) return false;
+      }
+      if (dateTo) {
+        const endDate = new Date(sub.end_date);
+        const to = new Date(dateTo);
+        if (endDate > to) return false;
+      }
+
+      return true;
+    });
+  }, [subs, quickFilter, dateFrom, dateTo]);
+
   if (loading || plansLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
   const handleSync = async () => {
     setSyncing(true);
-    // Simulate Hikvision sync
     await new Promise(resolve => setTimeout(resolve, 2000));
     toast({ title: 'Synchronisation terminée', description: 'Les données ont été synchronisées avec le terminal Hikvision.' });
     setSyncing(false);
     fetchSubs();
   };
+
+  const quickFilters: { key: QuickFilter; label: string }[] = [
+    { key: 'all', label: 'Tous' },
+    { key: 'active', label: 'Actifs' },
+    { key: 'expired', label: 'Expirés' },
+    { key: 'ending_soon', label: 'Bientôt fini' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -95,6 +139,43 @@ export default function Subscriptions() {
         ))}
       </div>
 
+      {/* Filters */}
+      <Card className="shadow-sm">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            Filtres
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {quickFilters.map((f) => (
+              <Button
+                key={f.key}
+                variant={quickFilter === f.key ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setQuickFilter(f.key)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" />Échéance du</Label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="mt-1 w-44" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" />Au</Label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 w-44" />
+            </div>
+            {(dateFrom || dateTo || quickFilter !== 'all') && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setQuickFilter('all'); }}>
+                Réinitialiser
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
@@ -111,10 +192,10 @@ export default function Subscriptions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {subs.length === 0 ? (
+              {filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={role === 'admin' ? 8 : 7} className="text-center py-8 text-muted-foreground">Aucun abonnement</TableCell></TableRow>
               ) : (
-                subs.map((sub) => {
+                filtered.map((sub) => {
                   const st = statusConfig[sub.status] || statusConfig.pending;
                   const remaining = sub.amount_mad - sub.paid_mad;
                   const memberName = sub.members?.full_name || '—';

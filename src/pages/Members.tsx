@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import EditMemberDialog from '@/components/EditMemberDialog';
+import PrintBadgeButton from '@/components/PrintBadgeButton';
 
 interface MemberRow {
   id: string;
@@ -157,7 +158,10 @@ export default function Members() {
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(member.join_date)}</TableCell>
                       {can('members_edit') && (
                         <TableCell>
-                          <EditMemberDialog member={member} onSuccess={fetchMembers} />
+                          <div className="flex items-center gap-1">
+                            <PrintBadgeButton member={member} />
+                            <EditMemberDialog member={member} onSuccess={fetchMembers} />
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
