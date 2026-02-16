@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import NewUserDialog from '@/components/NewUserDialog';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 
 interface GroupOption { id: string; name: string; }
 
@@ -21,12 +22,14 @@ interface UserRow {
 }
 
 export default function UserManagement() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: '', userName: '' });
+  const isAdmin = role === 'admin';
 
   const fetchData = async () => {
     const [rolesRes, groupsRes] = await Promise.all([
@@ -104,24 +107,7 @@ export default function UserManagement() {
     setActionLoading(null);
   };
 
-  const handleResetPassword = async (userId: string, email: string) => {
-    setActionLoading(userId);
-    // Use edge function or admin API for password reset
-    // For now, send a password reset email
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-    } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'password_reset', entity_type: 'user',
-          entity_id: userId, details: { email },
-        });
-      }
-      toast({ title: 'Email de réinitialisation envoyé', description: `Un lien a été envoyé à ${email}` });
-    }
-    setActionLoading(null);
-  };
+  // Removed client-side resetPasswordForEmail — replaced by admin-change-password edge function
 
   if (loading) return <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
@@ -140,8 +126,9 @@ export default function UserManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Nom</TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wide">Nom</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Email</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Rôle</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Groupe</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Statut</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>
@@ -149,7 +136,7 @@ export default function UserManagement() {
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun utilisateur</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun utilisateur</TableCell></TableRow>
               ) : (
                 users.map(u => {
                   const status = u.profile?.status || 'active';
@@ -158,6 +145,9 @@ export default function UserManagement() {
                     <TableRow key={u.user_id}>
                       <TableCell className="font-medium">{u.profile?.full_name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{u.profile?.email || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs capitalize">{u.role}</Badge>
+                      </TableCell>
                       <TableCell>
                         <Select
                           value={u.group_id || ''}
@@ -197,13 +187,13 @@ export default function UserManagement() {
                                 : <><UserCheck className="w-3 h-3" />Activer</>
                             )}
                           </Button>
-                          {u.profile?.email && (
+                          {isAdmin && u.profile?.full_name && (
                             <Button
                               variant="ghost" size="sm" className="gap-1 text-xs h-7"
-                              onClick={() => handleResetPassword(u.user_id, u.profile!.email)}
+                              onClick={() => setPasswordDialog({ open: true, userId: u.user_id, userName: u.profile!.full_name })}
                               disabled={isLoading}
                             >
-                              <KeyRound className="w-3 h-3" />Reset MDP
+                              <KeyRound className="w-3 h-3" />MDP
                             </Button>
                           )}
                         </div>
@@ -216,6 +206,13 @@ export default function UserManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      <ChangePasswordDialog
+        open={passwordDialog.open}
+        onOpenChange={(open) => setPasswordDialog(prev => ({ ...prev, open }))}
+        userId={passwordDialog.userId}
+        userName={passwordDialog.userName}
+      />
     </div>
   );
 }
