@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserPlus, Search, QrCode, Phone, CreditCard as CINIcon, Loader2 } from 'lucide-react';
+import { UserPlus, Search, Barcode, Phone, CreditCard as CINIcon, Loader2 } from 'lucide-react';
 import { formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -128,7 +128,7 @@ export default function Members() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Téléphone</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">CIN</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Âge</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">QR Code</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Code-barres</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Inscription</TableHead>
                 {can('members_edit') && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
               </TableRow>
@@ -153,7 +153,7 @@ export default function Members() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell><Badge variant="secondary" className="font-mono text-xs gap-1"><QrCode className="w-3 h-3" />{member.qr_code}</Badge></TableCell>
+                      <TableCell><Badge variant="secondary" className="font-mono text-xs gap-1"><Barcode className="w-3 h-3" />{member.qr_code}</Badge></TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(member.join_date)}</TableCell>
                       {can('members_edit') && (
                         <TableCell>

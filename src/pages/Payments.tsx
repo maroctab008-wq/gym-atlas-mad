@@ -63,6 +63,10 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [branding, setBranding] = useState<BrandingData>({ gym_name: 'GymManager', phone: '', website: '', address: '', ice: '', logo_url: '' });
 
+  // Payment filters
+  const [payStartDate, setPayStartDate] = useState('');
+  const [payEndDate, setPayEndDate] = useState('');
+
   // Expense filters
   const [expStartDate, setExpStartDate] = useState('');
   const [expEndDate, setExpEndDate] = useState('');
@@ -82,7 +86,13 @@ export default function Payments() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const totalByMethod = (m: string) => payments.filter(p => p.method === m).reduce((s, p) => s + p.amount_mad, 0);
+  const filteredPayments = payments.filter(p => {
+    if (payStartDate && p.date < payStartDate) return false;
+    if (payEndDate && p.date > payEndDate) return false;
+    return true;
+  });
+
+  const totalByMethod = (m: string) => filteredPayments.filter(p => p.method === m).reduce((s, p) => s + p.amount_mad, 0);
 
   const filteredExpenses = expenses.filter(e => {
     if (expStartDate && e.date < expStartDate) return false;
@@ -133,6 +143,28 @@ export default function Payments() {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
+          {/* Payment Date Filters */}
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Date de début</Label>
+              <Input type="date" value={payStartDate} onChange={e => setPayStartDate(e.target.value)} className="w-40 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Date de fin</Label>
+              <Input type="date" value={payEndDate} onChange={e => setPayEndDate(e.target.value)} className="w-40 h-9" />
+            </div>
+            {(payStartDate || payEndDate) && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => { setPayStartDate(''); setPayEndDate(''); }}>
+                  Réinitialiser
+                </Button>
+                <div className="ml-auto text-sm font-medium">
+                  Total période: <span className="font-semibold">{formatMAD(filteredPayments.reduce((s, p) => s + p.amount_mad, 0))}</span>
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             {(['cash', 'tpe', 'cheque', 'transfer'] as const).map((key) => {
               const mc = methodConfig[key];
@@ -168,10 +200,10 @@ export default function Payments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.length === 0 ? (
-                    <TableRow><TableCell colSpan={can('payments_create') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement enregistré</TableCell></TableRow>
+                  {filteredPayments.length === 0 ? (
+                    <TableRow><TableCell colSpan={can('payments_create') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement trouvé</TableCell></TableRow>
                   ) : (
-                    payments.map((payment) => {
+                    filteredPayments.map((payment) => {
                       const mc = methodConfig[payment.method] || methodConfig.cash;
                       const Icon = mc.icon;
                       const planLabel = payment.installment_plan === '2x' ? '2 fois' : payment.installment_plan === '3x' ? '3 fois' : 'Total';
