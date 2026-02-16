@@ -8,11 +8,11 @@ interface PrintBadgeButtonProps {
     full_name: string;
     qr_code: string;
     photo_url?: string | null;
+    join_date?: string;
   };
-  gymName?: string;
 }
 
-export default function PrintBadgeButton({ member, gymName = 'GYM ATLAS' }: PrintBadgeButtonProps) {
+export default function PrintBadgeButton({ member }: PrintBadgeButtonProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useCallback(() => {
@@ -21,9 +21,30 @@ export default function PrintBadgeButton({ member, gymName = 'GYM ATLAS' }: Prin
     container.id = 'print-badge-container';
     container.innerHTML = `
       <style>
+        @page {
+          size: 85mm 55mm;
+          margin: 0;
+        }
         @media print {
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 85mm;
+            height: 55mm;
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           body > *:not(#print-badge-container) { display: none !important; }
-          #print-badge-container { display: flex !important; justify-content: center; align-items: center; height: 100vh; }
+          #print-badge-container {
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            width: 85mm;
+            height: 55mm;
+            margin: 0;
+            padding: 0;
+          }
         }
         @media screen {
           #print-badge-container { position: fixed; top: -9999px; left: -9999px; }
@@ -31,9 +52,7 @@ export default function PrintBadgeButton({ member, gymName = 'GYM ATLAS' }: Prin
         .badge-card {
           width: 85mm;
           height: 55mm;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          padding: 6mm;
+          padding: 4mm 5mm;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -43,50 +62,32 @@ export default function PrintBadgeButton({ member, gymName = 'GYM ATLAS' }: Prin
           color: #1a1a2e;
           box-sizing: border-box;
         }
-        .badge-gym-name {
-          font-size: 11pt;
-          font-weight: 700;
+        .badge-brand {
+          font-size: 13pt;
+          font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 2px;
+          letter-spacing: 3px;
           color: #2563eb;
         }
-        .badge-photo {
-          width: 18mm;
-          height: 18mm;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid #2563eb;
+        .badge-member-name {
+          font-size: 11pt;
+          font-weight: 700;
+          text-align: center;
+          text-transform: uppercase;
         }
-        .badge-photo-placeholder {
-          width: 18mm;
-          height: 18mm;
-          border-radius: 50%;
-          background: #e5e7eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18pt;
-          font-weight: 600;
+        .badge-join-date {
+          font-size: 8pt;
           color: #6b7280;
         }
-        .badge-member-name {
-          font-size: 10pt;
-          font-weight: 600;
-          text-align: center;
-          margin: 1mm 0;
-        }
         .badge-barcode svg {
-          width: 55mm;
-          height: 12mm;
+          width: 65mm;
+          height: 14mm;
         }
       </style>
       <div class="badge-card">
-        <div class="badge-gym-name">${gymName}</div>
-        ${member.photo_url
-          ? `<img class="badge-photo" src="${member.photo_url}" alt="${member.full_name}" />`
-          : `<div class="badge-photo-placeholder">${member.full_name.charAt(0).toUpperCase()}</div>`
-        }
+        <div class="badge-brand">Devsoltech</div>
         <div class="badge-member-name">${member.full_name}</div>
+        <div class="badge-join-date">Membre depuis : ${member.join_date ? new Date(member.join_date).toLocaleDateString('fr-FR') : ''}</div>
         <div class="badge-barcode"><svg id="badge-barcode-svg"></svg></div>
       </div>
     `;
@@ -115,7 +116,7 @@ export default function PrintBadgeButton({ member, gymName = 'GYM ATLAS' }: Prin
         document.body.removeChild(container);
       }, 500);
     }, 100);
-  }, [member, gymName]);
+  }, [member]);
 
   return (
     <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
