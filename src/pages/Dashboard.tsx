@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2 } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2, Bell } from 'lucide-react';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,7 +62,24 @@ export default function Dashboard() {
   }, [payments, expenses, startDate, endDate]);
 
   const totalActiveMembers = subs.filter(s => s.status === 'active').length;
-  const unpaidMembers = subs.filter(s => s.paid_mad < s.amount_mad);
+  const now = new Date();
+
+  // Unpaid logic with 7-day grace period
+  const unpaidMembers = subs.filter(s => {
+    if (s.paid_mad >= s.amount_mad) return false;
+    const endDate = new Date(s.end_date);
+    const daysPastDue = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Show notification only if past due but within 7-day grace
+    return daysPastDue >= 0 && daysPastDue <= 7;
+  });
+
+  const overdueMembers = subs.filter(s => {
+    if (s.paid_mad >= s.amount_mad) return false;
+    const endDate = new Date(s.end_date);
+    const daysPastDue = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysPastDue > 7;
+  });
+
   const totalUnpaid = unpaidMembers.reduce((sum, s) => sum + (s.amount_mad - s.paid_mad), 0);
 
   const monthlyIncomeData = useMemo(() => {
@@ -242,21 +259,61 @@ export default function Dashboard() {
       </div>
 
       {unpaidMembers.length > 0 && (
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-warning/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-warning">
-              <AlertTriangle className="w-4 h-4" />Membres avec Solde Impayé
+              <Bell className="w-4 h-4" />
+              Notifications — Membres Impayés
+              <Badge variant="destructive" className="ml-auto text-xs">{unpaidMembers.length}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {unpaidMembers.map((sub) => (
+              {unpaidMembers.map((sub) => {
+                const endDate = new Date(sub.end_date);
+                const daysPastDue = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                      <div>
+                        <p className="font-medium text-sm">{sub.members?.full_name || '—'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Échéance : {formatDateFR(sub.end_date)} — {daysPastDue > 0 ? `${daysPastDue}j de retard` : "Échéance aujourd'hui"}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="border-destructive/50 text-destructive font-mono text-xs">
+                      {formatMAD(sub.amount_mad - sub.paid_mad)}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {overdueMembers.length > 0 && (
+        <Card className="shadow-sm border-destructive/30 opacity-75">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-4 h-4" />
+              Membres Abandonnés (+ 7 jours de retard)
+              <Badge variant="destructive" className="ml-auto text-xs">{overdueMembers.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {overdueMembers.map((sub) => (
                 <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
                   <div>
-                    <p className="font-medium text-sm">{sub.members?.full_name || '—'}</p>
-                    <p className="text-xs text-muted-foreground">Expire le {formatDateFR(sub.end_date)}</p>
+                    <p className="font-medium text-sm line-through text-muted-foreground">{sub.members?.full_name || '—'}</p>
+                    <p className="text-xs text-muted-foreground">Statut : Inactif/Abandonné</p>
                   </div>
-                  <Badge variant="outline" className="border-warning/50 text-warning font-mono text-xs">{formatMAD(sub.amount_mad - sub.paid_mad)}</Badge>
+                  <Badge variant="outline" className="border-muted text-muted-foreground font-mono text-xs">
+                    {formatMAD(sub.amount_mad - sub.paid_mad)}
+                  </Badge>
                 </div>
               ))}
             </div>

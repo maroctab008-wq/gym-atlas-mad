@@ -1,0 +1,61 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+Deno.serve(async (req) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // Verify caller is admin
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
+
+  const { data: { user: caller } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (!caller) {
+    return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
+
+  // Check admin role
+  const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", caller.id).limit(1).single();
+  if (!roleData || roleData.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), { status: 403, headers: { "Content-Type": "application/json" } });
+  }
+
+  const { email, password, fullName, role, groupId } = await req.json();
+
+  if (!email || !password || !fullName) {
+    return new Response(JSON.stringify({ error: "Champs obligatoires manquants" }), { status: 400, headers: { "Content-Type": "application/json" } });
+  }
+
+  // Create user
+  const { data: newUser, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { "Content-Type": "application/json" } });
+  }
+
+  // Assign role
+  const { error: roleError } = await supabase
+    .from("user_roles")
+    .insert({ user_id: newUser.user.id, role: role || "staff", group_id: groupId || null });
+
+  if (roleError) {
+    return new Response(JSON.stringify({ error: roleError.message }), { status: 400, headers: { "Content-Type": "application/json" } });
+  }
+
+  // Update profile
+  await supabase
+    .from("profiles")
+    .update({ full_name: fullName })
+    .eq("user_id", newUser.user.id);
+
+  return new Response(JSON.stringify({ message: "Utilisateur créé", userId: newUser.user.id }), {
+    headers: { "Content-Type": "application/json" },
+  });
+});

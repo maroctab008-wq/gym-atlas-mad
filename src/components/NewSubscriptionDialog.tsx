@@ -1,0 +1,147 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { usePlans } from '@/hooks/usePlans';
+import { useToast } from '@/hooks/use-toast';
+import { addMonths, format } from 'date-fns';
+
+interface MemberOption { id: string; full_name: string; }
+
+export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () => void }) {
+  const { user } = useAuth();
+  const { plans } = usePlans();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [memberId, setMemberId] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState('pending');
+
+  useEffect(() => {
+    if (open) {
+      supabase.from('members').select('id, full_name').order('full_name').then(({ data }) => {
+        if (data) setMembers(data);
+      });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const selectedPlan = plans.find(p => p.id === planId);
+    if (selectedPlan && startDate) {
+      const end = addMonths(new Date(startDate), selectedPlan.months);
+      setEndDate(format(end, 'yyyy-MM-dd'));
+    }
+  }, [planId, startDate, plans]);
+
+  const selectedPlan = plans.find(p => p.id === planId);
+
+  const handleSave = async () => {
+    if (!memberId || !planId || !startDate || !endDate) {
+      toast({ title: 'Veuillez remplir tous les champs', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) { setSaving(false); return; }
+
+    const { error } = await supabase.from('subscriptions').insert({
+      member_id: memberId,
+      plan: plan.label,
+      start_date: startDate,
+      end_date: endDate,
+      amount_mad: plan.price_mad,
+      paid_mad: status === 'active' ? plan.price_mad : 0,
+      status,
+    });
+
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      if (user) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id, action: 'create', entity_type: 'subscription',
+          details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate },
+        });
+      }
+      toast({ title: 'Abonnement créé avec succès' });
+      setOpen(false);
+      setMemberId(''); setPlanId(''); setStatus('pending');
+      onSuccess?.();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2"><Plus className="w-4 h-4" />Ajouter un abonnement</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Nouvel Abonnement</DialogTitle></DialogHeader>
+        <div className="space-y-4 mt-2">
+          <div>
+            <Label className="text-sm">Membre</Label>
+            <Select value={memberId} onValueChange={setMemberId}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner un membre" /></SelectTrigger>
+              <SelectContent>
+                {members.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm">Plan</Label>
+            <Select value={planId} onValueChange={setPlanId}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner un plan" /></SelectTrigger>
+              <SelectContent>
+                {plans.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.label} — {p.price_mad} MAD / {p.months} mois</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">Date de début</Label>
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-sm">Date de fin</Label>
+              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-sm">Statut de paiement</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Payé (Actif)</SelectItem>
+                <SelectItem value="pending">En attente de paiement</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedPlan && (
+            <div className="p-3 rounded-lg bg-secondary/50 text-sm">
+              <span className="text-muted-foreground">Montant : </span>
+              <span className="font-semibold">{selectedPlan.price_mad} MAD</span>
+            </div>
+          )}
+          <Button onClick={handleSave} className="w-full gap-2" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Créer l'abonnement
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
