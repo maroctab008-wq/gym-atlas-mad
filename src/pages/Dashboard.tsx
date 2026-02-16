@@ -8,6 +8,7 @@ import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2 } from '
 import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface PaymentRow { id: string; amount_mad: number; date: string; method: string; members: { full_name: string } | null; }
@@ -26,6 +27,7 @@ const attendanceData = [
 
 export default function Dashboard() {
   const { role } = useAuth();
+  const { can } = usePermissions();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -75,7 +77,7 @@ export default function Dashboard() {
   }
 
   // Staff sees only attendance overview, no financial data
-  if (role !== 'admin') {
+  if (!can('view_dashboard_kpis')) {
     return (
       <div className="space-y-6">
         <div>

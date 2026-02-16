@@ -238,6 +238,30 @@ export type Database = {
           },
         ]
       }
+      permission_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          permissions: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plan_configs: {
         Row: {
           created_at: string
@@ -274,6 +298,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          status: string
           updated_at: string
           user_id: string
         }
@@ -282,6 +307,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          status?: string
           updated_at?: string
           user_id: string
         }
@@ -290,6 +316,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }
@@ -344,21 +371,32 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          group_id: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          group_id?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          group_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "permission_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

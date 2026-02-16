@@ -5,20 +5,20 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { role, signOut } = useAuth();
-
-  const canViewFinancial = role === 'admin';
+  const { can } = usePermissions();
 
   const navItems = [
-    ...(canViewFinancial ? [{ title: 'Tableau de Bord', url: '/', icon: LayoutDashboard }] : []),
+    ...(can('view_dashboard_kpis') ? [{ title: 'Tableau de Bord', url: '/', icon: LayoutDashboard }] : []),
     { title: 'Membres', url: '/members', icon: Users },
-    ...(canViewFinancial ? [{ title: 'Abonnements', url: '/subscriptions', icon: CreditCard }] : []),
+    ...(can('payments_view') ? [{ title: 'Abonnements', url: '/subscriptions', icon: CreditCard }] : []),
     { title: 'Entrée Live', url: '/live-entry', icon: ScanLine },
-    ...(canViewFinancial ? [{ title: 'Paiements', url: '/payments', icon: Receipt }] : []),
-    ...(role === 'admin' ? [
+    ...(can('payments_view') ? [{ title: 'Paiements', url: '/payments', icon: Receipt }] : []),
+    ...(can('settings_access') ? [
       { title: 'Paramètres', url: '/settings', icon: Settings },
       { title: 'Journal d\'Audit', url: '/audit-logs', icon: ClipboardList },
     ] : []),
