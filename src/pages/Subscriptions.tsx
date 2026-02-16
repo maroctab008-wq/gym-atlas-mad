@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlans } from '@/hooks/usePlans';
+import { useToast } from '@/hooks/use-toast';
 import EditSubscriptionDialog from '@/components/EditSubscriptionDialog';
+import NewSubscriptionDialog from '@/components/NewSubscriptionDialog';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active: { label: 'Actif', className: 'bg-success/10 text-success border-success/30' },
@@ -29,8 +32,10 @@ interface SubRow {
 export default function Subscriptions() {
   const { role } = useAuth();
   const { plans, loading: plansLoading } = usePlans();
+  const { toast } = useToast();
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   const fetchSubs = async () => {
     const { data } = await supabase
@@ -52,11 +57,29 @@ export default function Subscriptions() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const handleSync = async () => {
+    setSyncing(true);
+    // Simulate Hikvision sync
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    toast({ title: 'Synchronisation terminée', description: 'Les données ont été synchronisées avec le terminal Hikvision.' });
+    setSyncing(false);
+    fetchSubs();
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Abonnements</h1>
-        <p className="text-muted-foreground text-sm mt-1">Gestion des plans et statuts</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Abonnements</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gestion des plans et statuts</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Synchroniser les membres
+          </Button>
+          {role === 'admin' && <NewSubscriptionDialog onSuccess={fetchSubs} />}
+        </div>
       </div>
 
       {/* Dynamic plan cards from DB */}

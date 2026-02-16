@@ -49,8 +49,8 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
-                placeholder="admin@admin"
-              />
+              placeholder="Compte & utilisateur"
+            />
             </div>
             <div>
               <Label className="text-sm">Mot de passe</Label>
@@ -67,10 +67,6 @@ export default function Login() {
               Connexion
             </Button>
           </form>
-
-          <p className="text-xs text-muted-foreground text-center">
-            Compte par défaut: admin@admin / 12345@@?
-          </p>
         </CardContent>
       </Card>
     </div>

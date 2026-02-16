@@ -8,6 +8,7 @@ import { Loader2, KeyRound, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import NewUserDialog from '@/components/NewUserDialog';
 
 interface GroupOption { id: string; name: string; }
 
@@ -126,9 +127,12 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Utilisateurs</h2>
-        <p className="text-sm text-muted-foreground">Gérer le personnel et assigner des groupes</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Utilisateurs</h2>
+          <p className="text-sm text-muted-foreground">Gérer le personnel et assigner des groupes</p>
+        </div>
+        <NewUserDialog onSuccess={fetchData} />
       </div>
 
       <Card className="shadow-sm overflow-hidden">
