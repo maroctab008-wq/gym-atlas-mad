@@ -49,7 +49,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
-                placeholder="Compte & utilisateur"
+                placeholder="Exemple@exemple.com"
               />
             </div>
             <div>
