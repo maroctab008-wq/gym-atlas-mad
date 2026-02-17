@@ -33,9 +33,17 @@ interface SubRow {
 
 const paymentStatusBadge = (amountMad: number, paidMad: number) => {
   if (paidMad >= amountMad) {
-    return <Badge variant="outline" className="bg-success/10 text-success border-success/30">Payé</Badge>;
+    return (
+      <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+        Payé
+      </Badge>
+    );
   }
-  return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">En attente</Badge>;
+  return (
+    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+      En attente
+    </Badge>
+  );
 };
 
 type QuickFilter = "all" | "active" | "expired" | "pending";
@@ -97,7 +105,7 @@ export default function Subscriptions() {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     toast({
       title: "Synchronisation terminée",
-      description: "Les données ont été synchronisées avec le terminal Hikvision.",
+      description: "Les données ont été synchronisées avec le terminal.",
     });
     setSyncing(false);
     fetchSubs();
@@ -239,9 +247,7 @@ export default function Subscriptions() {
                           <span className="font-mono text-sm text-success">0 MAD</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {paymentStatusBadge(sub.amount_mad, sub.paid_mad)}
-                      </TableCell>
+                      <TableCell>{paymentStatusBadge(sub.amount_mad, sub.paid_mad)}</TableCell>
                       {role === "admin" && (
                         <TableCell>
                           <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
