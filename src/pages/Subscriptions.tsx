@@ -1,23 +1,23 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Loader2, RefreshCw, Filter, CalendarDays } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { usePlans } from '@/hooks/usePlans';
-import { useToast } from '@/hooks/use-toast';
-import EditSubscriptionDialog from '@/components/EditSubscriptionDialog';
-import NewSubscriptionDialog from '@/components/NewSubscriptionDialog';
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatMAD, formatDateFR } from "@/lib/formatters";
+import { Loader2, RefreshCw, Filter, CalendarDays } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePlans } from "@/hooks/usePlans";
+import { useToast } from "@/hooks/use-toast";
+import EditSubscriptionDialog from "@/components/EditSubscriptionDialog";
+import NewSubscriptionDialog from "@/components/NewSubscriptionDialog";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  active: { label: 'Actif', className: 'bg-success/10 text-success border-success/30' },
-  expired: { label: 'Expiré', className: 'bg-destructive/10 text-destructive border-destructive/30' },
-  pending: { label: 'En Attente', className: 'bg-warning/10 text-warning border-warning/30' },
+  active: { label: "Actif", className: "bg-success/10 text-success border-success/30" },
+  expired: { label: "Expiré", className: "bg-destructive/10 text-destructive border-destructive/30" },
+  pending: { label: "En Attente", className: "bg-warning/10 text-warning border-warning/30" },
 };
 
 interface SubRow {
@@ -31,7 +31,7 @@ interface SubRow {
   members: { full_name: string } | null;
 }
 
-type QuickFilter = 'all' | 'active' | 'expired' | 'ending_soon';
+type QuickFilter = "all" | "active" | "expired" | "ending_soon";
 
 export default function Subscriptions() {
   const { role } = useAuth();
@@ -40,23 +40,25 @@ export default function Subscriptions() {
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
 
   const fetchSubs = async () => {
     const { data } = await supabase
-      .from('subscriptions')
-      .select('id, plan, status, start_date, end_date, amount_mad, paid_mad, members(full_name)')
-      .order('created_at', { ascending: false });
+      .from("subscriptions")
+      .select("id, plan, status, start_date, end_date, amount_mad, paid_mad, members(full_name)")
+      .order("created_at", { ascending: false });
     if (data) setSubs(data as SubRow[]);
     setLoading(false);
   };
 
-  useEffect(() => { fetchSubs(); }, []);
+  useEffect(() => {
+    fetchSubs();
+  }, []);
 
   const getPlanLabel = (planKey: string) => {
-    const found = plans.find(p => p.label.toLowerCase().replace(/\s+/g, '_') === planKey || p.label === planKey);
+    const found = plans.find((p) => p.label.toLowerCase().replace(/\s+/g, "_") === planKey || p.label === planKey);
     return found?.label || planKey;
   };
 
@@ -67,10 +69,10 @@ export default function Subscriptions() {
 
     return subs.filter((sub) => {
       // Quick status filter
-      if (quickFilter === 'active' && sub.status !== 'active') return false;
-      if (quickFilter === 'expired' && sub.status !== 'expired') return false;
-      if (quickFilter === 'ending_soon') {
-        if (sub.status !== 'active') return false;
+      if (quickFilter === "active" && sub.status !== "active") return false;
+      if (quickFilter === "expired" && sub.status !== "expired") return false;
+      if (quickFilter === "ending_soon") {
+        if (sub.status !== "active") return false;
         const end = new Date(sub.end_date);
         if (end > twoDaysLater) return false;
       }
@@ -92,22 +94,29 @@ export default function Subscriptions() {
   }, [subs, quickFilter, dateFrom, dateTo]);
 
   if (loading || plansLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   const handleSync = async () => {
     setSyncing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    toast({ title: 'Synchronisation terminée', description: 'Les données ont été synchronisées avec le terminal Hikvision.' });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    toast({
+      title: "Synchronisation terminée",
+      description: "Les données ont été synchronisées avec le terminal Hikvision.",
+    });
     setSyncing(false);
     fetchSubs();
   };
 
   const quickFilters: { key: QuickFilter; label: string }[] = [
-    { key: 'all', label: 'Tous' },
-    { key: 'active', label: 'Actifs' },
-    { key: 'expired', label: 'Expirés' },
-    { key: 'ending_soon', label: 'Bientôt fini' },
+    { key: "all", label: "Tous" },
+    { key: "active", label: "Actifs" },
+    { key: "expired", label: "Expirés" },
+    { key: "ending_soon", label: "En Attente" },
   ];
 
   return (
@@ -122,7 +131,7 @@ export default function Subscriptions() {
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Synchroniser les membres
           </Button>
-          {role === 'admin' && <NewSubscriptionDialog onSuccess={fetchSubs} />}
+          {role === "admin" && <NewSubscriptionDialog onSuccess={fetchSubs} />}
         </div>
       </div>
 
@@ -150,7 +159,7 @@ export default function Subscriptions() {
             {quickFilters.map((f) => (
               <Button
                 key={f.key}
-                variant={quickFilter === f.key ? 'default' : 'outline'}
+                variant={quickFilter === f.key ? "default" : "outline"}
                 size="sm"
                 onClick={() => setQuickFilter(f.key)}
               >
@@ -160,15 +169,29 @@ export default function Subscriptions() {
           </div>
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" />Échéance du</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="mt-1 w-44" />
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" />
+                Échéance du
+              </Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="mt-1 w-44" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" />Au</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 w-44" />
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" />
+                Au
+              </Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="mt-1 w-44" />
             </div>
-            {(dateFrom || dateTo || quickFilter !== 'all') && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setQuickFilter('all'); }}>
+            {(dateFrom || dateTo || quickFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setQuickFilter("all");
+                }}
+              >
                 Réinitialiser
               </Button>
             )}
@@ -188,22 +211,32 @@ export default function Subscriptions() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Fin</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Payé</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
-                {role === 'admin' && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
+                {role === "admin" && (
+                  <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={role === 'admin' ? 8 : 7} className="text-center py-8 text-muted-foreground">Aucun abonnement</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={role === "admin" ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                    Aucun abonnement
+                  </TableCell>
+                </TableRow>
               ) : (
                 filtered.map((sub) => {
                   const st = statusConfig[sub.status] || statusConfig.pending;
                   const remaining = sub.amount_mad - sub.paid_mad;
-                  const memberName = sub.members?.full_name || '—';
+                  const memberName = sub.members?.full_name || "—";
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className="font-medium">{memberName}</TableCell>
                       <TableCell className="text-sm">{getPlanLabel(sub.plan)}</TableCell>
-                      <TableCell><Badge variant="outline" className={st.className}>{st.label}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={st.className}>
+                          {st.label}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.start_date)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(sub.end_date)}</TableCell>
                       <TableCell className="font-mono text-sm">{formatMAD(sub.paid_mad)}</TableCell>
@@ -214,7 +247,7 @@ export default function Subscriptions() {
                           <span className="font-mono text-sm text-success">0 MAD</span>
                         )}
                       </TableCell>
-                      {role === 'admin' && (
+                      {role === "admin" && (
                         <TableCell>
                           <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
                         </TableCell>
