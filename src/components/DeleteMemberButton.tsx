@@ -27,15 +27,15 @@ export default function DeleteMemberButton({ memberId, memberName, onSuccess }: 
     // Check for active subscriptions
     const { data: activeSubs } = await supabase
       .from('subscriptions')
-      .select('id')
+      .select('id, status')
       .eq('member_id', memberId)
-      .eq('status', 'active')
+      .in('status', ['active', 'pending'])
       .limit(1);
 
     if (activeSubs && activeSubs.length > 0) {
       toast({
         title: 'Suppression impossible',
-        description: 'Ce membre a des abonnements actifs. Veuillez les résilier avant de supprimer le membre.',
+        description: 'Ce membre a des abonnements actifs ou en attente. Veuillez les résilier avant de supprimer le membre.',
         variant: 'destructive',
       });
       setDeleting(false);
