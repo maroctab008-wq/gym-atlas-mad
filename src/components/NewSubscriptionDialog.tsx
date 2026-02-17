@@ -13,12 +13,6 @@ import { addMonths, format } from 'date-fns';
 
 interface MemberOption { id: string; full_name: string; }
 
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Espèces' },
-  { value: 'cheque', label: 'Chèque' },
-  { value: 'transfer', label: 'Virement' },
-];
-
 export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuth();
   const { plans } = usePlans();
@@ -30,7 +24,6 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
   const [planId, setPlanId] = useState('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   useEffect(() => {
     if (open) {
@@ -79,13 +72,15 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
       return;
     }
 
-    // 2. Create linked payment
+    // 2. Create linked payment with auto-generated invoice number
+    const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
     const { error: payError } = await supabase.from('payments').insert({
       member_id: memberId,
       subscription_id: subData.id,
       amount_mad: plan.price_mad,
-      method: paymentMethod,
+      method: 'cash',
       date: startDate,
+      invoice_number: invoiceNumber,
     });
 
     if (payError) {
@@ -100,13 +95,13 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     if (user) {
       await supabase.from('audit_logs').insert({
         user_id: user.id, action: 'create', entity_type: 'subscription',
-        details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate, payment_method: paymentMethod },
+        details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate, invoice_number: invoiceNumber },
       });
     }
 
-    toast({ title: 'L\'abonnement a été créé et un paiement en attente a été généré' });
+    toast({ title: 'Abonnement créé', description: `Facture ${invoiceNumber} générée automatiquement` });
     setOpen(false);
-    setMemberId(''); setPlanId(''); setPaymentMethod('cash');
+    setMemberId(''); setPlanId('');
     onSuccess?.();
     setSaving(false);
   };
@@ -150,17 +145,6 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
               <Label className="text-sm">Date de fin</Label>
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1" />
             </div>
-          </div>
-          <div>
-            <Label className="text-sm">Mode de paiement</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map(m => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           {selectedPlan && (
             <div className="p-3 rounded-lg bg-secondary/50 text-sm">
