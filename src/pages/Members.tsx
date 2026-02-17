@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import EditMemberDialog from '@/components/EditMemberDialog';
+import ImportXMLButton from '@/components/ImportXMLButton';
 
 
 interface MemberRow {
@@ -94,7 +95,9 @@ export default function Members() {
           <h1 className="text-2xl font-semibold text-foreground">Membres</h1>
           <p className="text-muted-foreground text-sm mt-1">{members.length} membres enregistrés</p>
         </div>
-        {can('members_add') && (
+        <div className="flex gap-2">
+          {can('members_add') && <ImportXMLButton onSuccess={fetchMembers} />}
+          {can('members_add') && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2"><UserPlus className="w-4 h-4" />Nouveau membre</Button>
@@ -113,6 +116,7 @@ export default function Members() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       <div className="relative max-w-md">
