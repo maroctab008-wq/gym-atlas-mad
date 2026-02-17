@@ -191,6 +191,7 @@ export type Database = {
           installment_total: number | null
           invoice_number: string | null
           member_id: string | null
+          member_name: string | null
           method: string
           subscription_id: string | null
         }
@@ -206,6 +207,7 @@ export type Database = {
           installment_total?: number | null
           invoice_number?: string | null
           member_id?: string | null
+          member_name?: string | null
           method: string
           subscription_id?: string | null
         }
@@ -221,6 +223,7 @@ export type Database = {
           installment_total?: number | null
           invoice_number?: string | null
           member_id?: string | null
+          member_name?: string | null
           method?: string
           subscription_id?: string | null
         }

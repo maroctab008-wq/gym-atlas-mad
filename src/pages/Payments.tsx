@@ -39,7 +39,8 @@ interface PaymentRow {
   invoice_number: string | null;
   cheque_number: string | null;
   installment_plan: string | null;
-  member_id: string;
+  member_id: string | null;
+  member_name: string | null;
   members: { full_name: string; cin: string } | null;
 }
 
@@ -75,7 +76,7 @@ export default function Payments() {
 
   const fetchData = async () => {
     const [paymentsRes, expensesRes, brandingRes] = await Promise.all([
-      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, members(full_name, cin)').order('date', { ascending: false }),
+      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, member_name, members(full_name, cin)').order('date', { ascending: false }),
       supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
     ]);
@@ -109,7 +110,7 @@ export default function Payments() {
     generateInvoicePDF({
       invoiceNumber: payment.invoice_number || `FAC-${payment.id.slice(0, 8).toUpperCase()}`,
       date: formatDateFR(payment.date),
-      memberName: payment.members?.full_name || '—',
+      memberName: payment.members?.full_name || payment.member_name || '—',
       memberCIN: payment.members?.cin || '',
       planLabel,
       planMonths,
@@ -212,7 +213,12 @@ export default function Payments() {
                       return (
                         <TableRow key={payment.id}>
                           <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
-                          <TableCell className="font-medium">{payment.members?.full_name || '—'}</TableCell>
+                          <TableCell className="font-medium">
+                            {payment.members?.full_name || payment.member_name || '—'}
+                            {!payment.members && payment.member_name && (
+                              <span className="text-xs text-muted-foreground ml-1">(supprimé)</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-mono font-semibold">{formatMAD(payment.amount_mad)}</TableCell>
                           <TableCell className={`font-mono font-semibold ${reste > 0 ? 'text-destructive' : ''}`}>{formatMAD(reste)}</TableCell>
                           <TableCell>
