@@ -20,10 +20,9 @@ const expenseCategoryLabels: Record<string, string> = {
   maintenance: 'Maintenance', equipment: 'Équipement', other: 'Autre',
 };
 
-const attendanceData = [
-  { day: 'Lun', entries: 45 }, { day: 'Mar', entries: 52 }, { day: 'Mer', entries: 38 },
-  { day: 'Jeu', entries: 61 }, { day: 'Ven', entries: 55 }, { day: 'Sam', entries: 70 }, { day: 'Dim', entries: 25 },
-];
+const dayLabels = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+interface AccessLogRow { id: string; timestamp: string; status: string; }
 
 export default function Dashboard() {
   const { role } = useAuth();
@@ -31,6 +30,7 @@ export default function Dashboard() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
+  const [accessLogs, setAccessLogs] = useState<AccessLogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -40,14 +40,24 @@ export default function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [pRes, eRes, sRes] = await Promise.all([
+      // Get start of current week (Monday)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun
+      const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - diffToMonday);
+      monday.setHours(0, 0, 0, 0);
+
+      const [pRes, eRes, sRes, aRes] = await Promise.all([
         supabase.from('payments').select('id, amount_mad, date, method, members(full_name)').order('date', { ascending: false }),
         supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
         supabase.from('subscriptions').select('id, status, amount_mad, paid_mad, end_date, plan, members(full_name)'),
+        supabase.from('access_logs').select('id, timestamp, status').gte('timestamp', monday.toISOString()),
       ]);
       if (pRes.data) setPayments(pRes.data as PaymentRow[]);
       if (eRes.data) setExpenses(eRes.data);
       if (sRes.data) setSubs(sRes.data as SubRow[]);
+      if (aRes.data) setAccessLogs(aRes.data);
       setLoading(false);
     };
     load();
@@ -60,6 +70,16 @@ export default function Dashboard() {
     const totalExpenses = eFiltered.reduce((s, e) => s + e.amount_mad, 0);
     return { payments: pFiltered, expenses: eFiltered, totalRevenue, totalExpenses, netProfit: totalRevenue - totalExpenses };
   }, [payments, expenses, startDate, endDate]);
+
+  const attendanceData = useMemo(() => {
+    const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    accessLogs.forEach(log => {
+      const d = new Date(log.timestamp).getDay();
+      counts[d]++;
+    });
+    // Order: Lun(1) -> Dim(0)
+    return [1, 2, 3, 4, 5, 6, 0].map(d => ({ day: dayLabels[d], entries: counts[d] }));
+  }, [accessLogs]);
 
   const totalActiveMembers = subs.filter(s => s.status === 'active').length;
   const now = new Date();
