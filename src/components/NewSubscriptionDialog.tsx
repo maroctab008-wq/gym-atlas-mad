@@ -24,6 +24,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
   const [planId, setPlanId] = useState('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState('pending');
 
   useEffect(() => {
     if (open) {
@@ -63,7 +64,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
       end_date: endDate,
       amount_mad: plan.price_mad,
       paid_mad: 0,
-      status: 'pending',
+      status,
     });
 
     if (subError) {
@@ -82,7 +83,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
 
     toast({ title: 'Abonnement créé avec succès' });
     setOpen(false);
-    setMemberId(''); setPlanId('');
+    setMemberId(''); setPlanId(''); setStatus('pending');
     onSuccess?.();
     setSaving(false);
   };
@@ -127,12 +128,21 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1" />
             </div>
           </div>
+          <div>
+            <Label className="text-sm">Statut</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="expired">Expiré</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {selectedPlan && (
             <div className="p-3 rounded-lg bg-secondary/50 text-sm">
               <span className="text-muted-foreground">Montant : </span>
               <span className="font-semibold">{selectedPlan.price_mad} MAD</span>
-              <span className="text-muted-foreground ml-2">· Statut : </span>
-              <span className="font-semibold text-warning">En attente</span>
             </div>
           )}
           <Button onClick={handleSave} className="w-full gap-2" disabled={saving}>
