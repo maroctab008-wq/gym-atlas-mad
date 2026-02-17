@@ -117,8 +117,10 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
     const computedReste = selectedSub ? Math.max(0, remaining - amountNum) : 0;
 
+    const member = members.find(m => m.id === selectedMemberId);
     const { error } = await supabase.from('payments').insert({
       member_id: selectedMemberId,
+      member_name: member?.full_name || '',
       subscription_id: selectedSubId || null,
       amount_mad: amountNum,
       method,
@@ -156,15 +158,15 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     }
 
     // Generate PDF
-    const member = members.find(m => m.id === selectedMemberId);
+    const pdfMember = members.find(m => m.id === selectedMemberId);
     const planKey = selectedSub?.plan || 'monthly';
     const planConfig = plansMap[planKey] || { label: planKey, months: 1, priceMAD: amountNum };
 
     generateInvoicePDF({
       invoiceNumber,
       date: formatDateFR(paymentDate),
-      memberName: member?.full_name || '',
-      memberCIN: member?.cin || '',
+      memberName: pdfMember?.full_name || '',
+      memberCIN: pdfMember?.cin || '',
       planLabel: planConfig.label,
       planMonths: planConfig.months,
       amountMAD: amountNum,
