@@ -56,9 +56,13 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     const planKeyMap: Record<number, string> = { 1: 'monthly', 3: 'quarterly', 12: 'annual' };
     const planKey = planKeyMap[plan.months] || 'monthly';
 
+    // Get member name for traceability
+    const selectedMember = members.find(m => m.id === memberId);
+
     // Create subscription only (no payment)
     const { error: subError } = await supabase.from('subscriptions').insert({
       member_id: memberId,
+      member_name: selectedMember?.full_name || null,
       plan: planKey,
       start_date: startDate,
       end_date: endDate,

@@ -29,6 +29,7 @@ interface SubRow {
   end_date: string;
   amount_mad: number;
   paid_mad: number;
+  member_name: string | null;
   members: { full_name: string } | null;
 }
 
@@ -63,7 +64,7 @@ export default function Subscriptions() {
   const fetchSubs = async () => {
     const { data } = await supabase
       .from("subscriptions")
-      .select("id, plan, status, start_date, end_date, amount_mad, paid_mad, members(full_name)")
+      .select("id, plan, status, start_date, end_date, amount_mad, paid_mad, member_name, members(full_name)")
       .order("created_at", { ascending: false });
     if (data) setSubs(data as SubRow[]);
     setLoading(false);
@@ -228,7 +229,7 @@ export default function Subscriptions() {
                 filtered.map((sub) => {
                   const st = statusConfig[sub.status] || statusConfig.pending;
                   const remaining = sub.amount_mad - sub.paid_mad;
-                  const memberName = sub.members?.full_name || "—";
+                  const memberName = sub.members?.full_name || (sub.member_name ? `${sub.member_name} (supprimé)` : "—");
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className="font-medium">{memberName}</TableCell>

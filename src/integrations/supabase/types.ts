@@ -335,6 +335,7 @@ export type Database = {
           end_date: string
           id: string
           member_id: string | null
+          member_name: string | null
           paid_mad: number
           plan: string
           start_date: string
@@ -347,6 +348,7 @@ export type Database = {
           end_date: string
           id?: string
           member_id?: string | null
+          member_name?: string | null
           paid_mad?: number
           plan: string
           start_date: string
@@ -359,6 +361,7 @@ export type Database = {
           end_date?: string
           id?: string
           member_id?: string | null
+          member_name?: string | null
           paid_mad?: number
           plan?: string
           start_date?: string
