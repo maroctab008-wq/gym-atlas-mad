@@ -253,7 +253,7 @@ export default function Subscriptions() {
                         <TableCell>
                           <div className="flex gap-1">
                             <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
-                            <DeleteSubscriptionButton subscriptionId={sub.id} amountMad={sub.amount_mad} paidMad={sub.paid_mad} onSuccess={fetchSubs} />
+                            <DeleteSubscriptionButton subscriptionId={sub.id} subscriptionStatus={sub.status} amountMad={sub.amount_mad} paidMad={sub.paid_mad} onSuccess={fetchSubs} />
                           </div>
                         </TableCell>
                       )}

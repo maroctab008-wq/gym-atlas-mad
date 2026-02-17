@@ -13,18 +13,20 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   subscriptionId: string;
+  subscriptionStatus: string;
   amountMad: number;
   paidMad: number;
   onSuccess?: () => void;
 }
 
-export default function DeleteSubscriptionButton({ subscriptionId, amountMad, paidMad, onSuccess }: Props) {
+export default function DeleteSubscriptionButton({ subscriptionId, subscriptionStatus, amountMad, paidMad, onSuccess }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletePendingPayments, setDeletePendingPayments] = useState(true);
   const hasPendingPayments = paidMad < amountMad;
+  const canDelete = subscriptionStatus === 'expired';
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -66,6 +68,19 @@ export default function DeleteSubscriptionButton({ subscriptionId, amountMad, pa
     setOpen(false);
   };
 
+  if (!canDelete) {
+    return (
+      <div className="relative group">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground cursor-not-allowed opacity-50" disabled>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap rounded bg-popover text-popover-foreground text-xs px-2 py-1 shadow border z-50">
+          Impossible de supprimer un abonnement en cours ou réservé
+        </span>
+      </div>
+    );
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -77,7 +92,7 @@ export default function DeleteSubscriptionButton({ subscriptionId, amountMad, pa
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
           <AlertDialogDescription>
-            Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
+            Êtes-vous sûr de vouloir supprimer cet abonnement expiré ? Cette action est irréversible.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {hasPendingPayments && (
@@ -88,7 +103,7 @@ export default function DeleteSubscriptionButton({ subscriptionId, amountMad, pa
               onCheckedChange={(v) => setDeletePendingPayments(!!v)}
             />
             <Label htmlFor="delete-payments" className="text-sm">
-              Supprimer aussi les paiements en attente associés
+              Supprimer aussi les paiements associés
             </Label>
           </div>
         )}
