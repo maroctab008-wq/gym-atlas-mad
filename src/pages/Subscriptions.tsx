@@ -31,6 +31,13 @@ interface SubRow {
   members: { full_name: string } | null;
 }
 
+const paymentStatusBadge = (amountMad: number, paidMad: number) => {
+  if (paidMad >= amountMad) {
+    return <Badge variant="outline" className="bg-success/10 text-success border-success/30">Payé</Badge>;
+  }
+  return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">En attente</Badge>;
+};
+
 type QuickFilter = "all" | "active" | "expired" | "pending";
 
 export default function Subscriptions() {
@@ -195,6 +202,7 @@ export default function Subscriptions() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Fin</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Payé</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Paiement</TableHead>
                 {role === "admin" && (
                   <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>
                 )}
@@ -203,7 +211,7 @@ export default function Subscriptions() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={role === "admin" ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={role === "admin" ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     Aucun abonnement
                   </TableCell>
                 </TableRow>
@@ -230,6 +238,9 @@ export default function Subscriptions() {
                         ) : (
                           <span className="font-mono text-sm text-success">0 MAD</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {paymentStatusBadge(sub.amount_mad, sub.paid_mad)}
                       </TableCell>
                       {role === "admin" && (
                         <TableCell>

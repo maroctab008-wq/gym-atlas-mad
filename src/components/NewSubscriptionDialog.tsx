@@ -13,6 +13,12 @@ import { addMonths, format } from 'date-fns';
 
 interface MemberOption { id: string; full_name: string; }
 
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Espèces' },
+  { value: 'cheque', label: 'Chèque' },
+  { value: 'transfer', label: 'Virement' },
+];
+
 export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuth();
   const { plans } = usePlans();
@@ -24,7 +30,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
   const [planId, setPlanId] = useState('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState('');
-  const [status, setStatus] = useState('pending');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   useEffect(() => {
     if (open) {
@@ -53,34 +59,55 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     const plan = plans.find(p => p.id === planId);
     if (!plan) { setSaving(false); return; }
 
-    // Map plan months to DB constraint values
     const planKeyMap: Record<number, string> = { 1: 'monthly', 3: 'quarterly', 12: 'annual' };
     const planKey = planKeyMap[plan.months] || 'monthly';
 
-    const { error } = await supabase.from('subscriptions').insert({
+    // 1. Create subscription and get its ID
+    const { data: subData, error: subError } = await supabase.from('subscriptions').insert({
       member_id: memberId,
       plan: planKey,
       start_date: startDate,
       end_date: endDate,
       amount_mad: plan.price_mad,
-      paid_mad: status === 'active' ? plan.price_mad : 0,
-      status,
+      paid_mad: 0,
+      status: 'pending',
+    }).select('id').single();
+
+    if (subError || !subData) {
+      toast({ title: 'Erreur', description: subError?.message || 'Impossible de créer l\'abonnement', variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+
+    // 2. Create linked payment
+    const { error: payError } = await supabase.from('payments').insert({
+      member_id: memberId,
+      subscription_id: subData.id,
+      amount_mad: plan.price_mad,
+      method: paymentMethod,
+      date: startDate,
     });
 
-    if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-    } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'create', entity_type: 'subscription',
-          details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate },
-        });
-      }
-      toast({ title: 'Abonnement créé avec succès' });
-      setOpen(false);
-      setMemberId(''); setPlanId(''); setStatus('pending');
-      onSuccess?.();
+    if (payError) {
+      // Rollback: delete the subscription if payment creation fails
+      await supabase.from('subscriptions').delete().eq('id', subData.id);
+      toast({ title: 'Erreur', description: 'Impossible de créer le paiement. L\'abonnement a été annulé.', variant: 'destructive' });
+      setSaving(false);
+      return;
     }
+
+    // 3. Audit log
+    if (user) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id, action: 'create', entity_type: 'subscription',
+        details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate, payment_method: paymentMethod },
+      });
+    }
+
+    toast({ title: 'L\'abonnement a été créé et un paiement en attente a été généré' });
+    setOpen(false);
+    setMemberId(''); setPlanId(''); setPaymentMethod('cash');
+    onSuccess?.();
     setSaving(false);
   };
 
@@ -125,12 +152,13 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
             </div>
           </div>
           <div>
-            <Label className="text-sm">Statut de paiement</Label>
-            <Select value={status} onValueChange={setStatus}>
+            <Label className="text-sm">Mode de paiement</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Payé (Actif)</SelectItem>
-                <SelectItem value="pending">En attente de paiement</SelectItem>
+                {PAYMENT_METHODS.map(m => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -138,6 +166,8 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
             <div className="p-3 rounded-lg bg-secondary/50 text-sm">
               <span className="text-muted-foreground">Montant : </span>
               <span className="font-semibold">{selectedPlan.price_mad} MAD</span>
+              <span className="text-muted-foreground ml-2">· Statut : </span>
+              <span className="font-semibold text-warning">En attente</span>
             </div>
           )}
           <Button onClick={handleSave} className="w-full gap-2" disabled={saving}>
