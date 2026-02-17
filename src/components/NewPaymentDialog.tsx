@@ -60,10 +60,23 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     if (!open) return;
     const load = async () => {
       const [membersRes, brandingRes] = await Promise.all([
-        supabase.from('members').select('id, full_name, cin').order('full_name'),
+        supabase
+          .from('members')
+          .select('id, full_name, cin, subscriptions!inner(status)')
+          .in('subscriptions.status', ['active', 'pending'])
+          .order('full_name'),
         supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
       ]);
-      if (membersRes.data) setMembers(membersRes.data);
+      if (membersRes.data) {
+        // Deduplicate members (a member may have multiple matching subscriptions)
+        const uniqueMembers = new Map<string, MemberOption>();
+        for (const m of membersRes.data) {
+          if (!uniqueMembers.has(m.id)) {
+            uniqueMembers.set(m.id, { id: m.id, full_name: m.full_name, cin: m.cin });
+          }
+        }
+        setMembers(Array.from(uniqueMembers.values()));
+      }
       if (brandingRes.data?.value) {
         setBranding(brandingRes.data.value as unknown as BrandingData);
       }
