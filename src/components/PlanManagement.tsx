@@ -19,7 +19,7 @@ interface PlanRow {
   is_active: boolean;
 }
 
-export default function PlanManagement() {
+export default function PlanManagement({ onPlansChanged }: { onPlansChanged?: () => void }) {
   const { toast } = useToast();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,11 +59,13 @@ export default function PlanManagement() {
     setEditingId(null);
     setForm({ label: '', months: '', price_mad: '' });
     fetchPlans();
+    onPlansChanged?.();
   };
 
   const toggleActive = async (plan: PlanRow) => {
     await supabase.from('plan_configs').update({ is_active: !plan.is_active }).eq('id', plan.id);
     fetchPlans();
+    onPlansChanged?.();
   };
 
   const openEdit = (plan: PlanRow) => {

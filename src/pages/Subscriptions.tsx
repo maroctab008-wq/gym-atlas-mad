@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMAD, formatDateFR } from "@/lib/formatters";
-import { Loader2, RefreshCw, Filter, CalendarDays } from "lucide-react";
+import { Loader2, RefreshCw, Filter, CalendarDays, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlans } from "@/hooks/usePlans";
@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import EditSubscriptionDialog from "@/components/EditSubscriptionDialog";
 import DeleteSubscriptionButton from "@/components/DeleteSubscriptionButton";
 import NewSubscriptionDialog from "@/components/NewSubscriptionDialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import PlanManagement from "@/components/PlanManagement";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active: { label: "Actif", className: "bg-success/10 text-success border-success/30" },
@@ -52,7 +54,7 @@ type QuickFilter = "all" | "active" | "expired" | "pending";
 
 export default function Subscriptions() {
   const { role } = useAuth();
-  const { plans, loading: plansLoading } = usePlans();
+  const { plans, loading: plansLoading, refetch: refetchPlans } = usePlans();
   const { toast } = useToast();
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,19 @@ export default function Subscriptions() {
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Synchroniser les membres
           </Button>
+          {role === "admin" && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Settings2 className="w-4 h-4" />
+                  Gestion des Plans
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl p-0">
+                <PlanManagement onPlansChanged={() => refetchPlans()} />
+              </DialogContent>
+            </Dialog>
+          )}
           {role === "admin" && <NewSubscriptionDialog onSuccess={fetchSubs} />}
         </div>
       </div>
