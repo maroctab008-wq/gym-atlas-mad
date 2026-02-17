@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePlans } from "@/hooks/usePlans";
 import { useToast } from "@/hooks/use-toast";
 import EditSubscriptionDialog from "@/components/EditSubscriptionDialog";
+import DeleteSubscriptionButton from "@/components/DeleteSubscriptionButton";
 import NewSubscriptionDialog from "@/components/NewSubscriptionDialog";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -250,7 +251,10 @@ export default function Subscriptions() {
                       <TableCell>{paymentStatusBadge(sub.amount_mad, sub.paid_mad)}</TableCell>
                       {role === "admin" && (
                         <TableCell>
-                          <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
+                          <div className="flex gap-1">
+                            <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
+                            <DeleteSubscriptionButton subscriptionId={sub.id} amountMad={sub.amount_mad} paidMad={sub.paid_mad} onSuccess={fetchSubs} />
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>

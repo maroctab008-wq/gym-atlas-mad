@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import EditMemberDialog from '@/components/EditMemberDialog';
+import DeleteMemberButton from '@/components/DeleteMemberButton';
 import ImportFileButton from '@/components/ImportFileButton';
 
 
@@ -162,7 +163,10 @@ export default function Members() {
                       <TableCell className="text-muted-foreground text-sm">{formatDateFR(member.join_date)}</TableCell>
                       {can('members_edit') && (
                         <TableCell>
-                          <EditMemberDialog member={member} onSuccess={fetchMembers} />
+                          <div className="flex gap-1">
+                            <EditMemberDialog member={member} onSuccess={fetchMembers} />
+                            <DeleteMemberButton memberId={member.id} memberName={member.full_name} onSuccess={fetchMembers} />
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
