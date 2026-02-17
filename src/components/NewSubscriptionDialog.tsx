@@ -55,8 +55,8 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     const planKeyMap: Record<number, string> = { 1: 'monthly', 3: 'quarterly', 12: 'annual' };
     const planKey = planKeyMap[plan.months] || 'monthly';
 
-    // 1. Create subscription and get its ID
-    const { data: subData, error: subError } = await supabase.from('subscriptions').insert({
+    // Create subscription only (no payment)
+    const { error: subError } = await supabase.from('subscriptions').insert({
       member_id: memberId,
       plan: planKey,
       start_date: startDate,
@@ -64,42 +64,23 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
       amount_mad: plan.price_mad,
       paid_mad: 0,
       status: 'pending',
-    }).select('id').single();
-
-    if (subError || !subData) {
-      toast({ title: 'Erreur', description: subError?.message || 'Impossible de créer l\'abonnement', variant: 'destructive' });
-      setSaving(false);
-      return;
-    }
-
-    // 2. Create linked payment with auto-generated invoice number
-    const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
-    const { error: payError } = await supabase.from('payments').insert({
-      member_id: memberId,
-      subscription_id: subData.id,
-      amount_mad: plan.price_mad,
-      method: 'cash',
-      date: startDate,
-      invoice_number: invoiceNumber,
     });
 
-    if (payError) {
-      // Rollback: delete the subscription if payment creation fails
-      await supabase.from('subscriptions').delete().eq('id', subData.id);
-      toast({ title: 'Erreur', description: 'Impossible de créer le paiement. L\'abonnement a été annulé.', variant: 'destructive' });
+    if (subError) {
+      toast({ title: 'Erreur', description: subError.message, variant: 'destructive' });
       setSaving(false);
       return;
     }
 
-    // 3. Audit log
+    // Audit log
     if (user) {
       await supabase.from('audit_logs').insert({
         user_id: user.id, action: 'create', entity_type: 'subscription',
-        details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate, invoice_number: invoiceNumber },
+        details: { member_id: memberId, plan: plan.label, start_date: startDate, end_date: endDate },
       });
     }
 
-    toast({ title: 'Abonnement créé', description: `Facture ${invoiceNumber} générée automatiquement` });
+    toast({ title: 'Abonnement créé avec succès' });
     setOpen(false);
     setMemberId(''); setPlanId('');
     onSuccess?.();
