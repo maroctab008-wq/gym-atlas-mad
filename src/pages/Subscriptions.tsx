@@ -63,27 +63,15 @@ export default function Subscriptions() {
   };
 
   const filtered = useMemo(() => {
-    const today = new Date();
-    const twoDaysLater = new Date();
-    twoDaysLater.setDate(today.getDate() + 2);
-
     return subs.filter((sub) => {
       // Quick status filter
       if (quickFilter === "active" && sub.status !== "active") return false;
       if (quickFilter === "expired" && sub.status !== "expired") return false;
       if (quickFilter === "pending" && sub.status !== "pending") return false;
 
-      // Date range filter on end_date
-      if (dateFrom) {
-        const endDate = new Date(sub.end_date);
-        const from = new Date(dateFrom);
-        if (endDate < from) return false;
-      }
-      if (dateTo) {
-        const endDate = new Date(sub.end_date);
-        const to = new Date(dateTo);
-        if (endDate > to) return false;
-      }
+      // Date range filter on end_date (string comparison for YYYY-MM-DD)
+      if (dateFrom && sub.end_date < dateFrom) return false;
+      if (dateTo && sub.end_date > dateTo) return false;
 
       return true;
     });
