@@ -20,7 +20,7 @@ export type Database = {
           balance_due_mad: number | null
           created_at: string
           id: string
-          member_id: string
+          member_id: string | null
           status: string
           timestamp: string
         }
@@ -29,7 +29,7 @@ export type Database = {
           balance_due_mad?: number | null
           created_at?: string
           id?: string
-          member_id: string
+          member_id?: string | null
           status: string
           timestamp?: string
         }
@@ -38,7 +38,7 @@ export type Database = {
           balance_due_mad?: number | null
           created_at?: string
           id?: string
-          member_id?: string
+          member_id?: string | null
           status?: string
           timestamp?: string
         }
@@ -334,7 +334,7 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
-          member_id: string
+          member_id: string | null
           paid_mad: number
           plan: string
           start_date: string
@@ -346,7 +346,7 @@ export type Database = {
           created_at?: string
           end_date: string
           id?: string
-          member_id: string
+          member_id?: string | null
           paid_mad?: number
           plan: string
           start_date: string
@@ -358,7 +358,7 @@ export type Database = {
           created_at?: string
           end_date?: string
           id?: string
-          member_id?: string
+          member_id?: string | null
           paid_mad?: number
           plan?: string
           start_date?: string
