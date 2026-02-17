@@ -190,7 +190,7 @@ export type Database = {
           installment_plan: string | null
           installment_total: number | null
           invoice_number: string | null
-          member_id: string
+          member_id: string | null
           method: string
           subscription_id: string | null
         }
@@ -205,7 +205,7 @@ export type Database = {
           installment_plan?: string | null
           installment_total?: number | null
           invoice_number?: string | null
-          member_id: string
+          member_id?: string | null
           method: string
           subscription_id?: string | null
         }
@@ -220,7 +220,7 @@ export type Database = {
           installment_plan?: string | null
           installment_total?: number | null
           invoice_number?: string | null
-          member_id?: string
+          member_id?: string | null
           method?: string
           subscription_id?: string | null
         }
