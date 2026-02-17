@@ -54,7 +54,6 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
   const [method, setMethod] = useState('');
   const [chequeNumber, setChequeNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [installmentPlan, setInstallmentPlan] = useState('total');
 
   useEffect(() => {
     if (!open) return;
@@ -100,6 +99,8 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
 
   const selectedSub = subscriptions.find(s => s.id === selectedSubId);
   const remaining = selectedSub ? selectedSub.amount_mad - selectedSub.paid_mad : 0;
+  const amountNum = parseFloat(amount) || 0;
+  const resteAPayer = selectedSub ? Math.max(0, remaining - amountNum) : 0;
 
   const handleSave = async () => {
     if (!selectedMemberId || !amount || !method || !paymentDate) {
@@ -114,8 +115,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
 
     setSaving(true);
     const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
-
-    const installmentTotal = installmentPlan === '2x' ? 2 : installmentPlan === '3x' ? 3 : 1;
+    const computedReste = selectedSub ? Math.max(0, remaining - amountNum) : 0;
 
     const { error } = await supabase.from('payments').insert({
       member_id: selectedMemberId,
@@ -125,9 +125,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
       date: paymentDate,
       cheque_number: method === 'cheque' ? chequeNumber : null,
       invoice_number: invoiceNumber,
-      installment_plan: installmentPlan,
-      installment_number: 1,
-      installment_total: installmentTotal,
+      amount_due: computedReste,
     });
 
     if (error) {
@@ -189,7 +187,6 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     setMethod('');
     setChequeNumber('');
     setPaymentDate(new Date().toISOString().split('T')[0]);
-    setInstallmentPlan('total');
   };
 
   return (
@@ -247,18 +244,6 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
           )}
 
           <div>
-            <Label className="text-sm">Plan de paiement</Label>
-            <Select value={installmentPlan} onValueChange={setInstallmentPlan}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="total">Total (1 fois)</SelectItem>
-                <SelectItem value="2x">2 fois</SelectItem>
-                <SelectItem value="3x">3 fois</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <Label className="text-sm">Montant (MAD)</Label>
             <Input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1" placeholder="Ex: 300" />
           </div>
@@ -285,6 +270,18 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
             <div>
               <Label className="text-sm">Numéro de chèque</Label>
               <Input value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} className="mt-1" placeholder="Ex: 1234567" />
+            </div>
+          )}
+
+          {selectedSub && (
+            <div>
+              <Label className="text-sm">Reste à payer</Label>
+              <Input
+                type="text"
+                readOnly
+                value={`${resteAPayer.toLocaleString('fr-FR')} MAD`}
+                className={`mt-1 font-semibold ${resteAPayer > 0 ? 'text-destructive' : 'text-success'}`}
+              />
             </div>
           )}
 

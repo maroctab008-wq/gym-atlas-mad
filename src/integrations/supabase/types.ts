@@ -180,6 +180,7 @@ export type Database = {
       }
       payments: {
         Row: {
+          amount_due: number
           amount_mad: number
           cheque_number: string | null
           created_at: string
@@ -194,6 +195,7 @@ export type Database = {
           subscription_id: string | null
         }
         Insert: {
+          amount_due?: number
           amount_mad: number
           cheque_number?: string | null
           created_at?: string
@@ -208,6 +210,7 @@ export type Database = {
           subscription_id?: string | null
         }
         Update: {
+          amount_due?: number
           amount_mad?: number
           cheque_number?: string | null
           created_at?: string
