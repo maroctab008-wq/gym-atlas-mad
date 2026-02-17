@@ -33,6 +33,7 @@ const expenseCategoryLabels: Record<string, string> = {
 interface PaymentRow {
   id: string;
   amount_mad: number;
+  amount_due: number;
   method: string;
   date: string;
   invoice_number: string | null;
@@ -74,7 +75,7 @@ export default function Payments() {
 
   const fetchData = async () => {
     const [paymentsRes, expensesRes, brandingRes] = await Promise.all([
-      supabase.from('payments').select('id, amount_mad, method, date, invoice_number, cheque_number, installment_plan, member_id, members(full_name, cin)').order('date', { ascending: false }),
+      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, members(full_name, cin)').order('date', { ascending: false }),
       supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
     ]);
@@ -193,31 +194,39 @@ export default function Payments() {
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Date</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Membre</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Montant</TableHead>
+                    <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
+                    <TableHead className="text-xs font-medium uppercase tracking-wide">Statut</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Méthode</TableHead>
-                    <TableHead className="text-xs font-medium uppercase tracking-wide">Échéancier</TableHead>
                     <TableHead className="text-xs font-medium uppercase tracking-wide">Facture</TableHead>
                     {can('payments_create') && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPayments.length === 0 ? (
-                    <TableRow><TableCell colSpan={can('payments_create') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun paiement trouvé</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={can('payments_create') ? 8 : 7} className="text-center py-8 text-muted-foreground">Aucun paiement trouvé</TableCell></TableRow>
                   ) : (
                     filteredPayments.map((payment) => {
                       const mc = methodConfig[payment.method] || methodConfig.cash;
                       const Icon = mc.icon;
-                      const planLabel = payment.installment_plan === '2x' ? '2 fois' : payment.installment_plan === '3x' ? '3 fois' : 'Total';
+                      const reste = payment.amount_due || 0;
                       return (
                         <TableRow key={payment.id}>
                           <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
                           <TableCell className="font-medium">{payment.members?.full_name || '—'}</TableCell>
                           <TableCell className="font-mono font-semibold">{formatMAD(payment.amount_mad)}</TableCell>
+                          <TableCell className={`font-mono font-semibold ${reste > 0 ? 'text-destructive' : ''}`}>{formatMAD(reste)}</TableCell>
+                          <TableCell>
+                            {reste === 0 ? (
+                              <Badge className="bg-success/10 text-success border-success/30" variant="outline">Complet</Badge>
+                            ) : (
+                              <Badge className="bg-warning/10 text-warning border-warning/30" variant="outline">Partiel</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`${mc.className} gap-1`}>
                               <Icon className="w-3 h-3" />{mc.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{planLabel}</TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{payment.invoice_number || '—'}</TableCell>
                           {can('payments_create') && (
                             <TableCell>

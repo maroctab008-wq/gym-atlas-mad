@@ -1,0 +1,1 @@
+ALTER TABLE public.payments ADD COLUMN amount_due numeric NOT NULL DEFAULT 0;
