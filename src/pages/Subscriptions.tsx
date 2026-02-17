@@ -31,7 +31,7 @@ interface SubRow {
   members: { full_name: string } | null;
 }
 
-type QuickFilter = "all" | "active" | "expired" | "ending_soon";
+type QuickFilter = "all" | "active" | "expired" | "pending";
 
 export default function Subscriptions() {
   const { role } = useAuth();
@@ -71,11 +71,7 @@ export default function Subscriptions() {
       // Quick status filter
       if (quickFilter === "active" && sub.status !== "active") return false;
       if (quickFilter === "expired" && sub.status !== "expired") return false;
-      if (quickFilter === "ending_soon") {
-        if (sub.status !== "active") return false;
-        const end = new Date(sub.end_date);
-        if (end > twoDaysLater) return false;
-      }
+      if (quickFilter === "pending" && sub.status !== "pending") return false;
 
       // Date range filter on end_date
       if (dateFrom) {
@@ -116,7 +112,7 @@ export default function Subscriptions() {
     { key: "all", label: "Tous" },
     { key: "active", label: "Actifs" },
     { key: "expired", label: "Expirés" },
-    { key: "ending_soon", label: "En Attente" },
+    { key: "pending", label: "En Attente" },
   ];
 
   return (
