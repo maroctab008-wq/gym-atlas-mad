@@ -5,13 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings as SettingsIcon, Save, Loader2, Building2, Shield, CreditCard, Users, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Loader2, Building2, Shield, CreditCard, Users, ShieldCheck, Wrench } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import PlanManagement from '@/components/PlanManagement';
 import GroupManagement from '@/components/GroupManagement';
 import UserManagement from '@/components/UserManagement';
+import MaintenanceSection from '@/components/MaintenanceSection';
 
 interface BrandingData {
   gym_name: string; phone: string; website: string; address: string; ice: string; logo_url: string;
@@ -78,6 +79,7 @@ export default function Settings() {
           <TabsTrigger value="access" className="gap-2"><SettingsIcon className="w-4 h-4" />Règles d'Accès</TabsTrigger>
           <TabsTrigger value="branding" className="gap-2"><Building2 className="w-4 h-4" />Identité</TabsTrigger>
           <TabsTrigger value="gate" className="gap-2"><Shield className="w-4 h-4" />Portail</TabsTrigger>
+          <TabsTrigger value="maintenance" className="gap-2"><Wrench className="w-4 h-4" />Maintenance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="groups">
@@ -158,6 +160,10 @@ export default function Settings() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance">
+          <MaintenanceSection />
         </TabsContent>
       </Tabs>
     </div>
