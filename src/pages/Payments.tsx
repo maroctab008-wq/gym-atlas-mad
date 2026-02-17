@@ -15,7 +15,6 @@ import { usePermissions } from '@/hooks/usePermissions';
 import NewPaymentDialog from '@/components/NewPaymentDialog';
 import ExpenseDialog from '@/components/ExpenseDialog';
 import EditPaymentDialog from '@/components/EditPaymentDialog';
-import DeletePaymentButton from '@/components/DeletePaymentButton';
 import { generateInvoicePDF } from '@/lib/generateInvoicePDF';
 import { usePlans } from '@/hooks/usePlans';
 
@@ -227,7 +226,7 @@ export default function Payments() {
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintInvoice(payment)}>
                                   <FileText className="w-3.5 h-3.5" />
                                 </Button>
-                                <DeletePaymentButton paymentId={payment.id} onSuccess={fetchData} />
+                                
                               </div>
                             </TableCell>
                           )}
