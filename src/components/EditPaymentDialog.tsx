@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Loader2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { formatMAD } from '@/lib/formatters';
 
 interface PaymentData {
   id: string;
@@ -15,6 +16,14 @@ interface PaymentData {
   method: string;
   date: string;
   cheque_number: string | null;
+  subscription_id: string | null;
+}
+
+interface SubInfo {
+  id: string;
+  amount_mad: number;
+  paid_mad: number;
+  status: string;
 }
 
 export default function EditPaymentDialog({ payment, onSuccess }: { payment: PaymentData; onSuccess?: () => void }) {
@@ -22,21 +31,55 @@ export default function EditPaymentDialog({ payment, onSuccess }: { payment: Pay
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [amount, setAmount] = useState(String(payment.amount_mad));
+  const [additionalAmount, setAdditionalAmount] = useState('');
   const [method, setMethod] = useState(payment.method);
   const [chequeNumber, setChequeNumber] = useState(payment.cheque_number || '');
+  const [subInfo, setSubInfo] = useState<SubInfo | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setAdditionalAmount('');
+    setMethod(payment.method);
+    setChequeNumber(payment.cheque_number || '');
+    if (payment.subscription_id) {
+      supabase
+        .from('subscriptions')
+        .select('id, amount_mad, paid_mad, status')
+        .eq('id', payment.subscription_id)
+        .single()
+        .then(({ data }) => {
+          if (data) setSubInfo(data);
+        });
+    } else {
+      setSubInfo(null);
+    }
+  }, [open, payment]);
+
+  const totalDue = subInfo?.amount_mad ?? 0;
+  const alreadyPaid = subInfo?.paid_mad ?? 0;
+  const currentRemaining = totalDue - alreadyPaid;
+  const addNum = parseFloat(additionalAmount) || 0;
+  const newRemaining = Math.max(0, currentRemaining - addNum);
 
   const handleSave = async () => {
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (addNum <= 0 && method === payment.method) {
+      toast({ title: 'Aucune modification détectée' });
+      return;
+    }
+    if (addNum < 0) {
       toast({ title: 'Montant invalide', variant: 'destructive' });
       return;
     }
     setSaving(true);
+
     const changes: Record<string, any> = {};
-    if (amountNum !== payment.amount_mad) changes.amount_mad = amountNum;
     if (method !== payment.method) changes.method = method;
     if (method === 'cheque' && chequeNumber !== payment.cheque_number) changes.cheque_number = chequeNumber;
+
+    if (addNum > 0) {
+      changes.amount_mad = payment.amount_mad + addNum;
+      changes.amount_due = newRemaining;
+    }
 
     if (Object.keys(changes).length === 0) {
       toast({ title: 'Aucune modification détectée' });
@@ -47,25 +90,41 @@ export default function EditPaymentDialog({ payment, onSuccess }: { payment: Pay
     const { error } = await supabase.from('payments').update(changes).eq('id', payment.id);
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-    } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action: 'update',
-          entity_type: 'payment',
-          entity_id: payment.id,
-          details: { changes, previous: { amount_mad: payment.amount_mad, method: payment.method } },
-        });
-      }
-      toast({ title: 'Paiement modifié' });
-      setOpen(false);
-      onSuccess?.();
+      setSaving(false);
+      return;
     }
+
+    // Update subscription paid_mad if linked and additional amount was added
+    if (addNum > 0 && subInfo) {
+      const newPaid = alreadyPaid + addNum;
+      const newStatus = newPaid >= totalDue ? 'active' : subInfo.status;
+      await supabase.from('subscriptions').update({
+        paid_mad: newPaid,
+        status: newStatus,
+      }).eq('id', subInfo.id);
+    }
+
+    if (user) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'update',
+        entity_type: 'payment',
+        entity_id: payment.id,
+        details: { changes, previous: { amount_mad: payment.amount_mad, method: payment.method } },
+      });
+    }
+
+    toast({
+      title: 'Paiement mis à jour avec succès',
+      description: 'La facture est disponible au téléchargement.',
+    });
+    setOpen(false);
+    onSuccess?.();
     setSaving(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) { setAmount(String(payment.amount_mad)); setMethod(payment.method); setChequeNumber(payment.cheque_number || ''); } }}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <Pencil className="w-3.5 h-3.5" />
@@ -76,10 +135,52 @@ export default function EditPaymentDialog({ payment, onSuccess }: { payment: Pay
           <DialogTitle>Modifier le paiement</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
+          {subInfo && (
+            <div className="space-y-2 rounded-lg border p-3 bg-muted/50">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Prix total abonnement</span>
+                <span className="font-semibold">{formatMAD(totalDue)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Déjà payé</span>
+                <span className="font-semibold">{formatMAD(alreadyPaid)}</span>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-2">
+                <span className="text-muted-foreground font-medium">Reste à payer</span>
+                <span className={`font-bold ${currentRemaining > 0 ? 'text-destructive' : 'text-success'}`}>
+                  {formatMAD(currentRemaining)}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div>
-            <Label className="text-sm">Montant (MAD)</Label>
-            <Input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1" />
+            <Label className="text-sm">Versement complémentaire (MAD)</Label>
+            <Input
+              type="number"
+              min="0"
+              max={currentRemaining > 0 ? currentRemaining : undefined}
+              value={additionalAmount}
+              onChange={e => setAdditionalAmount(e.target.value)}
+              className="mt-1"
+              placeholder={currentRemaining > 0 ? `Max: ${currentRemaining}` : '0'}
+            />
           </div>
+
+          {addNum > 0 && subInfo && (
+            <div className="rounded-lg border p-3 bg-muted/50">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Nouveau reste à payer</span>
+                <span className={`font-bold ${newRemaining > 0 ? 'text-destructive' : 'text-success'}`}>
+                  {formatMAD(newRemaining)}
+                </span>
+              </div>
+              {newRemaining === 0 && (
+                <p className="text-xs text-success mt-1">✓ Le statut passera à « Complet »</p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label className="text-sm">Méthode</Label>
             <Select value={method} onValueChange={setMethod}>
