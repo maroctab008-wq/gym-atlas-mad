@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2, Bell } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, Receipt, DollarSign, Loader2, Bell, Clock, Hourglass } from 'lucide-react';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,7 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface PaymentRow { id: string; amount_mad: number; date: string; method: string; members: { full_name: string } | null; }
 interface ExpenseRow { id: string; category: string; description: string | null; amount_mad: number; date: string; }
-interface SubRow { id: string; status: string; amount_mad: number; paid_mad: number; end_date: string; plan: string; members: { full_name: string } | null; }
+interface SubRow { id: string; status: string; amount_mad: number; paid_mad: number; end_date: string; start_date: string; plan: string; members: { full_name: string } | null; }
 
 const expenseCategoryLabels: Record<string, string> = {
   rent: 'Loyer', electricity: 'Électricité', salaries: 'Salaires',
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [accessLogs, setAccessLogs] = useState<AccessLogRow[]>([]);
+  const [daysTolerance, setDaysTolerance] = useState(3);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -48,16 +49,21 @@ export default function Dashboard() {
       monday.setDate(now.getDate() - diffToMonday);
       monday.setHours(0, 0, 0, 0);
 
-      const [pRes, eRes, sRes, aRes] = await Promise.all([
+      const [pRes, eRes, sRes, aRes, settingsRes] = await Promise.all([
         supabase.from('payments').select('id, amount_mad, date, method, members(full_name)').order('date', { ascending: false }),
         supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
-        supabase.from('subscriptions').select('id, status, amount_mad, paid_mad, end_date, plan, members(full_name)'),
+        supabase.from('subscriptions').select('id, status, amount_mad, paid_mad, end_date, start_date, plan, members(full_name)'),
         supabase.from('access_logs').select('id, timestamp, status').gte('timestamp', monday.toISOString()),
+        supabase.from('app_settings').select('value').eq('key', 'access_rules').maybeSingle(),
       ]);
       if (pRes.data) setPayments(pRes.data as PaymentRow[]);
       if (eRes.data) setExpenses(eRes.data);
       if (sRes.data) setSubs(sRes.data as SubRow[]);
       if (aRes.data) setAccessLogs(aRes.data);
+      if (settingsRes.data) {
+        const v = settingsRes.data.value as Record<string, any>;
+        setDaysTolerance(v.days_tolerance ?? 3);
+      }
       setLoading(false);
     };
     load();
@@ -82,22 +88,35 @@ export default function Dashboard() {
   }, [accessLogs]);
 
   const totalActiveMembers = subs.filter(s => s.status === 'active').length;
+  const totalExpiredMembers = subs.filter(s => s.status === 'expired').length;
+  const totalPendingSubs = subs.filter(s => s.status === 'pending').length;
   const now = new Date();
 
-  // Unpaid logic with 7-day grace period
+  // Tolerance alerts: members in orange zone (expired within tolerance OR active with balance)
+  const toleranceAlerts = subs.filter(s => {
+    const endDate = new Date(s.end_date);
+    const daysSinceExpiry = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    const isExpired = s.status === 'expired' || daysSinceExpiry > 0;
+    const hasBalance = s.paid_mad < s.amount_mad;
+    // Orange: expired within tolerance OR active with balance
+    if (isExpired && daysSinceExpiry >= 0 && daysSinceExpiry <= daysTolerance) return true;
+    if (!isExpired && hasBalance) return true;
+    return false;
+  });
+
+  // Unpaid logic with tolerance-based grace period
   const unpaidMembers = subs.filter(s => {
     if (s.paid_mad >= s.amount_mad) return false;
     const endDate = new Date(s.end_date);
     const daysPastDue = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
-    // Show notification only if past due but within 7-day grace
-    return daysPastDue >= 0 && daysPastDue <= 7;
+    return daysPastDue >= 0 && daysPastDue <= daysTolerance;
   });
 
   const overdueMembers = subs.filter(s => {
     if (s.paid_mad >= s.amount_mad) return false;
     const endDate = new Date(s.end_date);
     const daysPastDue = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
-    return daysPastDue > 7;
+    return daysPastDue > daysTolerance;
   });
 
   const totalUnpaid = unpaidMembers.reduce((sum, s) => sum + (s.amount_mad - s.paid_mad), 0);
@@ -156,6 +175,8 @@ export default function Dashboard() {
 
   const statsCards = [
     { title: 'Membres Actifs', value: totalActiveMembers.toString(), icon: Users, color: 'text-primary bg-primary/10' },
+    { title: 'Expirés', value: totalExpiredMembers.toString(), icon: Clock, color: 'text-destructive bg-destructive/10' },
+    { title: 'En Attente', value: totalPendingSubs.toString(), icon: Hourglass, color: 'text-warning bg-warning/10' },
     { title: 'Revenus (Période)', value: formatMAD(filtered.totalRevenue), icon: TrendingUp, color: 'text-success bg-success/10' },
     { title: 'Dépenses (Période)', value: formatMAD(filtered.totalExpenses), icon: Receipt, color: 'text-destructive bg-destructive/10' },
     { title: 'Bénéfice Net', value: formatMAD(filtered.netProfit), icon: DollarSign, color: filtered.netProfit >= 0 ? 'text-success bg-success/10' : 'text-destructive bg-destructive/10' },
@@ -181,7 +202,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {statsCards.map((stat) => (
           <Card key={stat.title} className="shadow-sm">
             <CardContent className="p-5">
@@ -278,6 +299,47 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {toleranceAlerts.length > 0 && (
+        <Card className="shadow-sm border-warning/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-warning">
+              <AlertTriangle className="w-4 h-4" />
+              Alertes Accès — Période de Tolérance
+              <Badge className="ml-auto text-xs bg-warning/20 text-warning border-warning/40">{toleranceAlerts.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">Ces membres sont en accès orange (tolérance {daysTolerance}j). Merci de les interpeller pour régularisation.</p>
+            <div className="space-y-2">
+              {toleranceAlerts.map((sub) => {
+                const endDate = new Date(sub.end_date);
+                const daysSinceExpiry = Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+                const hasBalance = sub.paid_mad < sub.amount_mad;
+                const reason = daysSinceExpiry > 0
+                  ? `Expiré depuis ${daysSinceExpiry}j`
+                  : hasBalance ? 'Reste à payer' : '';
+                return (
+                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-warning/5 border border-warning/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                      <div>
+                        <p className="font-medium text-sm">{sub.members?.full_name || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{reason}</p>
+                      </div>
+                    </div>
+                    {hasBalance && (
+                      <Badge variant="outline" className="border-warning/50 text-warning font-mono text-xs">
+                        {formatMAD(sub.amount_mad - sub.paid_mad)}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {unpaidMembers.length > 0 && (
         <Card className="shadow-sm border-warning/30">
           <CardHeader className="pb-2">
@@ -319,7 +381,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-4 h-4" />
-              Membres Abandonnés (+ 7 jours de retard)
+              Membres Abandonnés (+ {daysTolerance}j de retard)
               <Badge variant="destructive" className="ml-auto text-xs">{overdueMembers.length}</Badge>
             </CardTitle>
           </CardHeader>

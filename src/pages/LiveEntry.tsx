@@ -19,9 +19,22 @@ export default function LiveEntry() {
   const [qrInput, setQrInput] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [scanning, setScanning] = useState(false);
+  const [daysTolerance, setDaysTolerance] = useState(3);
   const inputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef('');
   const barcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load days_tolerance from settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      const { data } = await supabase.from('app_settings').select('value').eq('key', 'access_rules').maybeSingle();
+      if (data) {
+        const v = data.value as Record<string, any>;
+        setDaysTolerance(v.days_tolerance ?? 3);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleScan = useCallback(async (code: string) => {
     if (!code.trim() || scanning) return;
@@ -54,21 +67,51 @@ export default function LiveEntry() {
       .limit(1)
       .maybeSingle();
 
-    if (!sub || sub.status === 'expired') {
-      setScanResult({ status: 'expired', memberName: member.full_name, message: 'Abonnement expiré' });
+    // Check all subscriptions (including recently expired within tolerance)
+    const { data: allSubs } = await supabase
+      .from('subscriptions')
+      .select('id, status, amount_mad, paid_mad, end_date, start_date')
+      .eq('member_id', member.id)
+      .order('end_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const latestSub = allSubs || sub;
+
+    if (!latestSub) {
+      setScanResult({ status: 'expired', memberName: member.full_name, message: 'Aucun abonnement trouvé' });
       await logAccess(member.id, 'expired');
-    } else if (sub.paid_mad < sub.amount_mad) {
-      const balance = sub.amount_mad - sub.paid_mad;
-      setScanResult({
-        status: 'balance_due',
-        memberName: member.full_name,
-        message: 'Accès autorisé — Solde en cours',
-        balanceDue: balance,
-      });
-      await logAccess(member.id, 'balance_due', undefined, balance);
     } else {
-      setScanResult({ status: 'granted', memberName: member.full_name, message: 'Accès autorisé' });
-      await logAccess(member.id, 'granted');
+      const endDate = new Date(latestSub.end_date);
+      const todayDate = new Date();
+      const daysSinceExpiry = Math.floor((todayDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+      const isExpired = latestSub.status === 'expired' || daysSinceExpiry > 0;
+      const hasBalance = latestSub.paid_mad < latestSub.amount_mad;
+      const balance = latestSub.amount_mad - latestSub.paid_mad;
+      const isPending = latestSub.status === 'pending' && latestSub.paid_mad === 0;
+
+      if (!isExpired && !hasBalance) {
+        // GREEN: Active + fully paid
+        setScanResult({ status: 'granted', memberName: member.full_name, message: 'Accès autorisé' });
+        await logAccess(member.id, 'granted');
+      } else if (isPending) {
+        // RED: Pending with no initial payment
+        setScanResult({ status: 'expired', memberName: member.full_name, message: 'En attente — Aucun paiement initial' });
+        await logAccess(member.id, 'expired');
+      } else if ((isExpired && daysSinceExpiry <= daysTolerance) || (!isExpired && hasBalance)) {
+        // ORANGE: Within tolerance or has balance due
+        setScanResult({
+          status: 'balance_due',
+          memberName: member.full_name,
+          message: 'Accès autorisé — Régularisation demandée',
+          balanceDue: hasBalance ? balance : undefined,
+        });
+        await logAccess(member.id, 'balance_due', undefined, hasBalance ? balance : 0);
+      } else {
+        // RED: Expired beyond tolerance
+        setScanResult({ status: 'expired', memberName: member.full_name, message: 'Accès refusé — Abonnement expiré' });
+        await logAccess(member.id, 'expired');
+      }
     }
     setScanning(false);
   }, [scanning]);

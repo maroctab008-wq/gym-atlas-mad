@@ -29,6 +29,7 @@ export default function Settings() {
   const [saving, setSaving] = useState('');
   const [blockAfterDays, setBlockAfterDays] = useState(7);
   const [allowBalanceDue, setAllowBalanceDue] = useState(true);
+  const [daysTolerance, setDaysTolerance] = useState(3);
   const [branding, setBranding] = useState<BrandingData>({ gym_name: '', phone: '', website: '', address: '', ice: '', logo_url: '' });
   const [gate, setGate] = useState<GateData>({ controller_ip: '', api_key: '', strict_payment_enforcement: true });
 
@@ -38,7 +39,7 @@ export default function Settings() {
       if (data) {
         for (const row of data) {
           const v = row.value as Record<string, any>;
-          if (row.key === 'access_rules') { setBlockAfterDays(v.block_after_days_late ?? 7); setAllowBalanceDue(v.allow_balance_due_entry ?? true); }
+          if (row.key === 'access_rules') { setBlockAfterDays(v.block_after_days_late ?? 7); setAllowBalanceDue(v.allow_balance_due_entry ?? true); setDaysTolerance(v.days_tolerance ?? 3); }
           if (row.key === 'gym_branding') setBranding(v as BrandingData);
           if (row.key === 'gate_control') setGate(v as GateData);
         }
@@ -103,6 +104,11 @@ export default function Settings() {
                 <Input type="number" min={1} max={90} value={blockAfterDays} onChange={(e) => setBlockAfterDays(Number(e.target.value))} />
                 <p className="text-xs text-muted-foreground">Les membres avec un paiement en retard de plus de {blockAfterDays} jours seront bloqués</p>
               </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Jours de tolérance après expiration (DAYS_TOLERANCE)</Label>
+                <Input type="number" min={0} max={30} value={daysTolerance} onChange={(e) => setDaysTolerance(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">Nombre de jours où l'accès reste autorisé (en orange) après expiration ou en cas de reste à payer</p>
+              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm">Autoriser l'entrée avec solde dû</Label>
@@ -110,7 +116,7 @@ export default function Settings() {
                 </div>
                 <Switch checked={allowBalanceDue} onCheckedChange={setAllowBalanceDue} />
               </div>
-              <Button onClick={() => saveSection('access_rules', { block_after_days_late: blockAfterDays, allow_balance_due_entry: allowBalanceDue })} disabled={saving === 'access_rules'} className="gap-2">
+              <Button onClick={() => saveSection('access_rules', { block_after_days_late: blockAfterDays, allow_balance_due_entry: allowBalanceDue, days_tolerance: daysTolerance })} disabled={saving === 'access_rules'} className="gap-2">
                 {saving === 'access_rules' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer
               </Button>
             </CardContent>
@@ -150,8 +156,9 @@ export default function Settings() {
               <div className="rounded-lg border border-border p-4 space-y-2 bg-secondary/30">
                 <p className="text-sm font-medium">Logique d'accès automatisée</p>
                 <div className="text-xs space-y-1 text-muted-foreground">
-                  <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-success" /><strong className="text-foreground">Accès accordé:</strong> Abonnement actif + Solde = 0 MAD</p>
-                  <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-destructive" /><strong className="text-foreground">Accès refusé:</strong> Expiré ou Solde &gt; 0 MAD</p>
+                  <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-success" /><strong className="text-foreground">Accès accordé:</strong> Abonnement actif + Reste à payer = 0</p>
+                  <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-warning" /><strong className="text-foreground">Tolérance:</strong> Expiré &lt; {daysTolerance}j OU Reste à payer &gt; 0</p>
+                  <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-destructive" /><strong className="text-foreground">Accès refusé:</strong> Expiré &gt; {daysTolerance}j OU En attente sans paiement</p>
                   <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-warning" /><strong className="text-foreground">Override admin:</strong> Forcer l'ouverture (admin uniquement)</p>
                 </div>
               </div>
