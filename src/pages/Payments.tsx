@@ -41,6 +41,7 @@ interface PaymentRow {
   installment_plan: string | null;
   member_id: string | null;
   member_name: string | null;
+  subscription_id: string | null;
   members: { full_name: string; cin: string } | null;
 }
 
@@ -76,7 +77,7 @@ export default function Payments() {
 
   const fetchData = async () => {
     const [paymentsRes, expensesRes, brandingRes] = await Promise.all([
-      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, member_name, members(full_name, cin)').order('date', { ascending: false }),
+      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, member_name, subscription_id, members(full_name, cin)').order('date', { ascending: false }),
       supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
     ]);

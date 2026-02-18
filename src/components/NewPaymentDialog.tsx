@@ -8,7 +8,6 @@ import { Loader2, Plus, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { generateInvoicePDF } from '@/lib/generateInvoicePDF';
 import { formatDateFR } from '@/lib/formatters';
 import { usePlans } from '@/hooks/usePlans';
 
@@ -157,25 +156,7 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
       });
     }
 
-    // Generate PDF
-    const pdfMember = members.find(m => m.id === selectedMemberId);
-    const planKey = selectedSub?.plan || 'monthly';
-    const planConfig = plansMap[planKey] || { label: planKey, months: 1, priceMAD: amountNum };
-
-    generateInvoicePDF({
-      invoiceNumber,
-      date: formatDateFR(paymentDate),
-      memberName: pdfMember?.full_name || '',
-      memberCIN: pdfMember?.cin || '',
-      planLabel: planConfig.label,
-      planMonths: planConfig.months,
-      amountMAD: amountNum,
-      paymentMethod: method,
-      chequeNumber: method === 'cheque' ? chequeNumber : undefined,
-      branding,
-    });
-
-    toast({ title: 'Paiement enregistré', description: `Facture ${invoiceNumber} générée` });
+    toast({ title: 'Paiement enregistré', description: `Facture ${invoiceNumber} disponible au téléchargement.` });
     setSaving(false);
     setOpen(false);
     resetForm();
