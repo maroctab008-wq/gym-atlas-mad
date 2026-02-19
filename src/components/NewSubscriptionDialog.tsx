@@ -25,6 +25,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('pending');
+  const [duplicateBlocked, setDuplicateBlocked] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -33,6 +34,29 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
       });
     }
   }, [open]);
+
+  // Check for duplicate subscriptions when member is selected
+  useEffect(() => {
+    if (!memberId) { setDuplicateBlocked(false); return; }
+    const checkDuplicate = async () => {
+      const { count } = await supabase
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('member_id', memberId)
+        .in('status', ['active', 'pending']);
+      if (count && count > 0) {
+        setDuplicateBlocked(true);
+        toast({
+          title: 'Doublon détecté',
+          description: 'Ce membre existe déjà dans le module abonnement avec un statut actif ou en attente.',
+          variant: 'destructive',
+        });
+      } else {
+        setDuplicateBlocked(false);
+      }
+    };
+    checkDuplicate();
+  }, [memberId]);
 
   useEffect(() => {
     const selectedPlan = plans.find(p => p.id === planId);
@@ -87,7 +111,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
 
     toast({ title: 'Abonnement créé avec succès' });
     setOpen(false);
-    setMemberId(''); setPlanId(''); setStatus('pending');
+    setMemberId(''); setPlanId(''); setStatus('pending'); setDuplicateBlocked(false);
     onSuccess?.();
     setSaving(false);
   };
@@ -109,11 +133,16 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
                   <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+          </Select>
+            {duplicateBlocked && (
+              <p className="text-xs text-destructive mt-1 font-medium">
+                ⚠ Ce membre possède déjà un abonnement actif ou en attente.
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-sm">Plan</Label>
-            <Select value={planId} onValueChange={setPlanId}>
+            <Select value={planId} onValueChange={setPlanId} disabled={duplicateBlocked}>
               <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner un plan" /></SelectTrigger>
               <SelectContent>
                 {plans.map(p => (
@@ -149,7 +178,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
               <span className="font-semibold">{selectedPlan.price_mad} MAD</span>
             </div>
           )}
-          <Button onClick={handleSave} className="w-full gap-2" disabled={saving}>
+          <Button onClick={handleSave} className="w-full gap-2" disabled={saving || duplicateBlocked}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Créer l'abonnement
           </Button>
