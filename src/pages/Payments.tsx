@@ -105,9 +105,30 @@ export default function Payments() {
   });
   const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount_mad, 0);
 
-  const handlePrintInvoice = (payment: PaymentRow) => {
-    const planLabel = Object.values(plansMap)[0]?.label || 'Abonnement';
-    const planMonths = Object.values(plansMap)[0]?.months || 1;
+  const handlePrintInvoice = async (payment: PaymentRow) => {
+    let planLabel = 'Abonnement';
+    let planMonths = 1;
+    let amountTotal = payment.amount_mad;
+    let amountPaid = payment.amount_mad;
+    let amountDue = payment.amount_due || 0;
+
+    // Fetch real subscription data if linked
+    if (payment.subscription_id) {
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('plan, amount_mad, paid_mad')
+        .eq('id', payment.subscription_id)
+        .single();
+      if (sub) {
+        const planConfig = plansMap[sub.plan];
+        planLabel = planConfig?.label || sub.plan;
+        planMonths = planConfig?.months || 1;
+        amountTotal = sub.amount_mad;
+        amountPaid = sub.paid_mad;
+        amountDue = Math.max(0, sub.amount_mad - sub.paid_mad);
+      }
+    }
+
     generateInvoicePDF({
       invoiceNumber: payment.invoice_number || `FAC-${payment.id.slice(0, 8).toUpperCase()}`,
       date: formatDateFR(payment.date),
@@ -115,7 +136,9 @@ export default function Payments() {
       memberCIN: payment.members?.cin || '',
       planLabel,
       planMonths,
-      amountMAD: payment.amount_mad,
+      amountTotal,
+      amountPaid,
+      amountDue,
       paymentMethod: payment.method,
       chequeNumber: payment.method === 'cheque' ? (payment.cheque_number || undefined) : undefined,
       branding,

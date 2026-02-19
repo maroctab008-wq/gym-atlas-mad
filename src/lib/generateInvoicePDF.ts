@@ -8,7 +8,9 @@ interface InvoiceData {
   memberCIN: string;
   planLabel: string;
   planMonths: number;
-  amountMAD: number;
+  amountTotal: number;
+  amountPaid: number;
+  amountDue: number;
   paymentMethod: string;
   chequeNumber?: string;
   branding: {
@@ -87,13 +89,13 @@ export function generateInvoicePDF(data: InvoiceData) {
   doc.text('Total', colX[2], y);
   y += 10;
 
-  // Table row
+  // Table row - dynamic plan name
   doc.setFont('helvetica', 'normal');
   const designation = `Abonnement ${data.planLabel} - ${data.planMonths} mois`;
   doc.text(designation, colX[0], y);
-  doc.text(`${data.amountMAD.toLocaleString('fr-FR')} MAD`, colX[1], y);
+  doc.text(`${data.amountTotal.toLocaleString('fr-FR')} MAD`, colX[1], y);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${data.amountMAD.toLocaleString('fr-FR')} MAD`, colX[2], y);
+  doc.text(`${data.amountTotal.toLocaleString('fr-FR')} MAD`, colX[2], y);
   y += 10;
 
   // Divider
@@ -101,11 +103,29 @@ export function generateInvoicePDF(data: InvoiceData) {
   doc.line(margin, y, pageWidth - margin, y);
   y += 8;
 
-  // Total
-  doc.setFontSize(11);
+  // Financial summary
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Montant total:', margin, y);
+  doc.text(`${data.amountTotal.toLocaleString('fr-FR')} MAD`, pageWidth - margin, y, { align: 'right' });
+  y += 6;
+
+  doc.text('Montant payé:', margin, y);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total: ${data.amountMAD.toLocaleString('fr-FR')} MAD`, pageWidth - margin, y, { align: 'right' });
-  y += 8;
+  doc.text(`${data.amountPaid.toLocaleString('fr-FR')} MAD`, pageWidth - margin, y, { align: 'right' });
+  y += 6;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Reste à payer:', margin, y);
+  doc.setFont('helvetica', 'bold');
+  if (data.amountDue > 0) {
+    doc.setTextColor(200, 50, 50);
+  } else {
+    doc.setTextColor(50, 150, 50);
+  }
+  doc.text(`${data.amountDue.toLocaleString('fr-FR')} MAD`, pageWidth - margin, y, { align: 'right' });
+  doc.setTextColor(0);
+  y += 10;
 
   // Payment method
   doc.setFontSize(9);
@@ -115,13 +135,23 @@ export function generateInvoicePDF(data: InvoiceData) {
     methodText += ` (N° ${data.chequeNumber})`;
   }
   doc.text(methodText, pageWidth - margin, y, { align: 'right' });
-  y += 12;
+  y += 10;
+
+  // Partial payment mention
+  if (data.amountDue > 0) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(200, 100, 0);
+    doc.text(`Paiement partiel - Solde restant : ${data.amountDue.toLocaleString('fr-FR')} DH`, margin, y);
+    doc.setTextColor(0);
+    y += 8;
+  }
 
   // Legal mention
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80);
-  const wordsAmount = numberToWordsFR(data.amountMAD);
+  const wordsAmount = numberToWordsFR(data.amountPaid);
   const capitalizedWords = wordsAmount.charAt(0).toUpperCase() + wordsAmount.slice(1);
   doc.text(`Arrêté la présente facture à la somme de ${capitalizedWords} Dirhams.`, margin, y);
 

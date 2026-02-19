@@ -113,7 +113,18 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
     }
 
     setSaving(true);
-    const invoiceNumber = `FAC-${Date.now().toString(36).toUpperCase()}`;
+
+    // Generate structured invoice number: YYYY-MM-XXX
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `${year}-${month}`;
+    const { count } = await supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .like('invoice_number', `${prefix}-%`);
+    const seq = String((count || 0) + 1).padStart(3, '0');
+    const invoiceNumber = `${prefix}-${seq}`;
     const computedReste = selectedSub ? Math.max(0, remaining - amountNum) : 0;
 
     const member = members.find(m => m.id === selectedMemberId);
