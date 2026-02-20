@@ -19,7 +19,7 @@ interface BrandingData {
 }
 
 interface GateData {
-  controller_ip: string; api_key: string; strict_payment_enforcement: boolean;
+  controller_ip: string; controller_port: string; api_key: string; strict_payment_enforcement: boolean;
 }
 
 export default function Settings() {
@@ -31,7 +31,7 @@ export default function Settings() {
   const [allowBalanceDue, setAllowBalanceDue] = useState(true);
   const [daysTolerance, setDaysTolerance] = useState(3);
   const [branding, setBranding] = useState<BrandingData>({ gym_name: '', phone: '', website: '', address: '', ice: '', logo_url: '' });
-  const [gate, setGate] = useState<GateData>({ controller_ip: '', api_key: '', strict_payment_enforcement: true });
+  const [gate, setGate] = useState<GateData>({ controller_ip: '', controller_port: '80', api_key: '', strict_payment_enforcement: true });
 
   useEffect(() => {
     const load = async () => {
@@ -142,10 +142,11 @@ export default function Settings() {
 
         <TabsContent value="gate">
           <Card className="shadow-sm max-w-xl">
-            <CardHeader><CardTitle className="text-sm font-medium flex items-center gap-2"><Shield className="w-4 h-4" />Contrôle Portail (Hardware)</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-medium flex items-center gap-2"><Shield className="w-4 h-4" />Contrôle Portail — Hikvision DS-K1T321MFWX</CardTitle></CardHeader>
             <CardContent className="space-y-6">
-              <div><Label className="text-sm">Adresse IP du contrôleur</Label><Input value={gate.controller_ip} onChange={e => setGate({ ...gate, controller_ip: e.target.value })} className="mt-1 font-mono" placeholder="192.168.1.100" /></div>
-              <div><Label className="text-sm">Clé API du contrôleur</Label><Input type="password" value={gate.api_key} onChange={e => setGate({ ...gate, api_key: e.target.value })} className="mt-1 font-mono" placeholder="••••••••" /></div>
+              <div><Label className="text-sm">Adresse IP du contrôleur</Label><Input value={gate.controller_ip} onChange={e => setGate({ ...gate, controller_ip: e.target.value })} className="mt-1 font-mono" placeholder="192.168.1.100" /><p className="text-xs text-muted-foreground mt-1">Adresse IP du terminal Hikvision sur le réseau local</p></div>
+              <div><Label className="text-sm">Port de communication</Label><Input value={gate.controller_port} onChange={e => setGate({ ...gate, controller_port: e.target.value })} className="mt-1 font-mono" placeholder="80" /><p className="text-xs text-muted-foreground mt-1">Port HTTP/HTTPS du terminal (par défaut : 80 pour HTTP, 443 pour HTTPS)</p></div>
+              <div><Label className="text-sm">Clé API / Mot de passe</Label><Input type="password" value={gate.api_key} onChange={e => setGate({ ...gate, api_key: e.target.value })} className="mt-1 font-mono" placeholder="••••••••" /><p className="text-xs text-muted-foreground mt-1">Identifiants ISAPI du terminal Hikvision</p></div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm">Application stricte du paiement</Label>
