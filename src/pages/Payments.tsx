@@ -60,7 +60,7 @@ interface BrandingData {
 export default function Payments() {
   const { role } = useAuth();
   const { can } = usePermissions();
-  const { plansMap } = usePlans();
+  const { plans, plansMap } = usePlans();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,9 +120,17 @@ export default function Payments() {
         .eq('id', payment.subscription_id)
         .single();
       if (sub) {
+        // Try plansMap key match, then search by id or raw label
         const planConfig = plansMap[sub.plan];
-        planLabel = planConfig?.label || sub.plan;
-        planMonths = planConfig?.months || 1;
+        if (planConfig) {
+          planLabel = planConfig.label;
+          planMonths = planConfig.months;
+        } else {
+          // Fallback: search plans array by id
+          const found = plans.find(p => p.id === sub.plan || p.label.toLowerCase().replace(/\s+/g, '_') === sub.plan);
+          planLabel = found?.label || sub.plan;
+          planMonths = found?.months || 1;
+        }
         amountTotal = sub.amount_mad;
         amountPaid = sub.paid_mad;
         amountDue = Math.max(0, sub.amount_mad - sub.paid_mad);
