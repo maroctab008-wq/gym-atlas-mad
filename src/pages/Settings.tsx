@@ -309,7 +309,7 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Shield className="w-4 h-4" />
-                Contrôle Portail{" "}
+                Contrôle Portail-Hardware{" "}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
