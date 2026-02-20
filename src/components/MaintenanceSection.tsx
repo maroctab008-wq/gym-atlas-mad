@@ -8,6 +8,7 @@ import { Download, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 export default function MaintenanceSection() {
   const { profile } = useAuth();
@@ -17,7 +18,7 @@ export default function MaintenanceSection() {
   const [password, setPassword] = useState('');
   const [resetting, setResetting] = useState(false);
 
-  const handleExportXML = async () => {
+  const handleExportExcel = async () => {
     setExporting(true);
     try {
       const [membersRes, subscriptionsRes, paymentsRes, plansRes, settingsRes, expensesRes] = await Promise.all([
@@ -29,51 +30,75 @@ export default function MaintenanceSection() {
         supabase.from('expenses').select('*'),
       ]);
 
-      const escapeXml = (val: any): string => {
-        if (val === null || val === undefined) return '';
-        return String(val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      };
+      const wb = XLSX.utils.book_new();
 
-      const toXmlRows = (tag: string, rows: any[]) => {
-        return rows.map(row => {
-          const fields = Object.entries(row).map(([k, v]) => {
-            if (typeof v === 'object' && v !== null) return `    <${k}>${escapeXml(JSON.stringify(v))}</${k}>`;
-            return `    <${k}>${escapeXml(v)}</${k}>`;
-          }).join('\n');
-          return `  <${tag}>\n${fields}\n  </${tag}>`;
-        }).join('\n');
-      };
+      // Membres
+      const membersData = (membersRes.data || []).map(m => ({
+        'Nom complet': m.full_name,
+        'Téléphone': m.phone,
+        'CIN': m.cin,
+        'Date de naissance': m.date_of_birth,
+        'Date d\'inscription': m.join_date,
+        'QR Code': m.qr_code,
+        'Créé le': m.created_at,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(membersData), 'Membres');
 
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<GymManagerExport date="${new Date().toISOString()}">
-  <Members>
-${toXmlRows('Member', membersRes.data || [])}
-  </Members>
-  <Subscriptions>
-${toXmlRows('Subscription', subscriptionsRes.data || [])}
-  </Subscriptions>
-  <Payments>
-${toXmlRows('Payment', paymentsRes.data || [])}
-  </Payments>
-  <Plans>
-${toXmlRows('Plan', plansRes.data || [])}
-  </Plans>
-  <Settings>
-${toXmlRows('Setting', settingsRes.data || [])}
-  </Settings>
-  <Expenses>
-${toXmlRows('Expense', expensesRes.data || [])}
-  </Expenses>
-</GymManagerExport>`;
+      // Abonnements
+      const subsData = (subscriptionsRes.data || []).map(s => ({
+        'Membre': s.member_name,
+        'Plan': s.plan,
+        'Début': s.start_date,
+        'Fin': s.end_date,
+        'Montant (MAD)': s.amount_mad,
+        'Payé (MAD)': s.paid_mad,
+        'Statut': s.status,
+        'Créé le': s.created_at,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(subsData), 'Abonnements');
 
-      const blob = new Blob([xml], { type: 'application/xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `gymmanager-export-${new Date().toISOString().slice(0, 10)}.xml`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: 'Export terminé', description: 'Le fichier XML a été téléchargé.' });
+      // Paiements
+      const paymentsData = (paymentsRes.data || []).map(p => ({
+        'Membre': p.member_name,
+        'N° Facture': p.invoice_number,
+        'Montant (MAD)': p.amount_mad,
+        'Reste (MAD)': p.amount_due,
+        'Méthode': p.method,
+        'Date': p.date,
+        'N° Chèque': p.cheque_number || '',
+        'Créé le': p.created_at,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsData), 'Paiements');
+
+      // Plans
+      const plansData = (plansRes.data || []).map(p => ({
+        'Label': p.label,
+        'Mois': p.months,
+        'Prix (MAD)': p.price_mad,
+        'Actif': p.is_active ? 'Oui' : 'Non',
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(plansData), 'Plans');
+
+      // Dépenses
+      const expensesData = (expensesRes.data || []).map(e => ({
+        'Catégorie': e.category,
+        'Description': e.description || '',
+        'Montant (MAD)': e.amount_mad,
+        'Date': e.date,
+        'Créé le': e.created_at,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expensesData), 'Dépenses');
+
+      // Paramètres
+      const settingsData = (settingsRes.data || []).map(s => ({
+        'Clé': s.key,
+        'Valeur': typeof s.value === 'object' ? JSON.stringify(s.value) : String(s.value),
+        'Mis à jour le': s.updated_at,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settingsData), 'Paramètres');
+
+      XLSX.writeFile(wb, `gymmanager-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast({ title: 'Export terminé', description: 'Le fichier Excel a été téléchargé.' });
     } catch {
       toast({ title: 'Erreur', description: "Échec de l'export", variant: 'destructive' });
     }
@@ -108,11 +133,11 @@ ${toXmlRows('Expense', expensesRes.data || [])}
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Téléchargez toutes les données (Membres, Abonnements, Paiements, Config) au format XML.
+            Téléchargez toutes les données (Membres, Abonnements, Paiements, Config) au format Excel.
           </p>
-          <Button onClick={handleExportXML} disabled={exporting} className="gap-2">
+          <Button onClick={handleExportExcel} disabled={exporting} className="gap-2">
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Exporter en XML
+            Exporter en Excel
           </Button>
         </CardContent>
       </Card>
