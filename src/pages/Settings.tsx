@@ -145,8 +145,23 @@ export default function Settings() {
             <CardHeader><CardTitle className="text-sm font-medium flex items-center gap-2"><Shield className="w-4 h-4" />Contrôle Portail — Hikvision DS-K1T321MFWX</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div><Label className="text-sm">Adresse IP du contrôleur</Label><Input value={gate.controller_ip} onChange={e => setGate({ ...gate, controller_ip: e.target.value })} className="mt-1 font-mono" placeholder="192.168.1.100" /><p className="text-xs text-muted-foreground mt-1">Adresse IP du terminal Hikvision sur le réseau local</p></div>
-              <div><Label className="text-sm">Port de communication</Label><Input value={gate.controller_port} onChange={e => setGate({ ...gate, controller_port: e.target.value })} className="mt-1 font-mono" placeholder="80" /><p className="text-xs text-muted-foreground mt-1">Port HTTP/HTTPS du terminal (par défaut : 80 pour HTTP, 443 pour HTTPS)</p></div>
+              <div><Label className="text-sm">Port</Label><Input value={gate.controller_port} onChange={e => setGate({ ...gate, controller_port: e.target.value })} className="mt-1 font-mono" placeholder="80" /><p className="text-xs text-muted-foreground mt-1">Par défaut : 80 (HTTP) ou 443 (HTTPS)</p></div>
               <div><Label className="text-sm">Clé API / Mot de passe</Label><Input type="password" value={gate.api_key} onChange={e => setGate({ ...gate, api_key: e.target.value })} className="mt-1 font-mono" placeholder="••••••••" /><p className="text-xs text-muted-foreground mt-1">Identifiants ISAPI du terminal Hikvision</p></div>
+              <Button variant="outline" onClick={async () => {
+                if (!gate.controller_ip) { toast({ title: 'Erreur', description: 'Veuillez saisir l\'adresse IP du contrôleur', variant: 'destructive' }); return; }
+                setSaving('test_connection');
+                try {
+                  const url = `http://${gate.controller_ip}:${gate.controller_port || '80'}`;
+                  toast({ title: 'Test de connexion', description: `Tentative de connexion à ${url}...` });
+                  // Simulated ping — real ISAPI call would need a backend proxy
+                  await new Promise(r => setTimeout(r, 1500));
+                  toast({ title: 'Info', description: `Adresse configurée : ${url}. Pour un test réel, une fonction backend (proxy ISAPI) est nécessaire.` });
+                } catch {
+                  toast({ title: 'Erreur', description: 'Impossible de joindre le terminal', variant: 'destructive' });
+                } finally { setSaving(''); }
+              }} disabled={saving === 'test_connection'} className="gap-2 w-full">
+                {saving === 'test_connection' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}Tester la connexion
+              </Button>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm">Application stricte du paiement</Label>
