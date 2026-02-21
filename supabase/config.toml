@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.reset-database]
 verify_jwt = false
+
+[functions.terminal-test-connection]
+verify_jwt = false
+
+[functions.terminal-sync]
+verify_jwt = false
