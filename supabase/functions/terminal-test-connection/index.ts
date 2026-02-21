@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Verify user is admin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
@@ -35,27 +34,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get gate settings
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "gate_control")
-      .single();
-
-    if (!settings?.value) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Configuration portail non trouvée" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const gate = settings.value as Record<string, string>;
-    const ip = gate.controller_ip;
-    const port = gate.controller_port || "80";
+    // Accept terminal info from body (multi-terminal support)
+    const body = await req.json().catch(() => ({}));
+    const { ip, port = "80", api_key } = body;
 
     if (!ip) {
       return new Response(
-        JSON.stringify({ success: false, error: "Adresse IP non configurée" }),
+        JSON.stringify({ success: false, error: "Adresse IP non fournie" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -65,12 +50,12 @@ Deno.serve(async (req) => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
-      
+
       const resp = await fetch(url, {
         method: "GET",
         signal: controller.signal,
-        headers: gate.api_key
-          ? { Authorization: `Basic ${btoa(`admin:${gate.api_key}`)}` }
+        headers: api_key
+          ? { Authorization: `Basic ${btoa(`admin:${api_key}`)}` }
           : {},
       });
       clearTimeout(timeout);
@@ -86,7 +71,7 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } catch (fetchErr) {
+    } catch (_fetchErr) {
       return new Response(
         JSON.stringify({ success: false, error: "Impossible de joindre le terminal. Vérifiez l'IP et le réseau." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
