@@ -77,6 +77,9 @@ export default function Subscriptions() {
   }, []);
 
   const getPlanLabel = (planKey: string) => {
+    // Support old hardcoded keys
+    const legacyMap: Record<string, string> = { monthly: 'Mensuelle', quarterly: 'Trimestrielle', annual: 'Annuelle' };
+    if (legacyMap[planKey]) return legacyMap[planKey];
     const found = plans.find((p) => p.label.toLowerCase().replace(/\s+/g, "_") === planKey || p.label === planKey);
     return found?.label || planKey;
   };

@@ -77,8 +77,7 @@ export default function NewSubscriptionDialog({ onSuccess }: { onSuccess?: () =>
     const plan = plans.find(p => p.id === planId);
     if (!plan) { setSaving(false); return; }
 
-    const planKeyMap: Record<number, string> = { 1: 'monthly', 3: 'quarterly', 12: 'annual' };
-    const planKey = planKeyMap[plan.months] || 'monthly';
+    const planKey = plan.label;
 
     // Get member name for traceability
     const selectedMember = members.find(m => m.id === memberId);
