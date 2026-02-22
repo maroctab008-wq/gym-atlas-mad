@@ -40,8 +40,7 @@ interface TerminalConfig {
   name: string;
   ip: string;
   port: string;
-  username: string;
-  password: string;
+  api_key: string;
 }
 
 interface GateData {
@@ -64,9 +63,9 @@ interface SyncMember {
 }
 
 const DEFAULT_TERMINALS: TerminalConfig[] = [
-  { name: "Terminal 1", ip: "192.168.31.27", port: "80", username: "admin", password: "" },
-  { name: "Terminal 2", ip: "", port: "80", username: "admin", password: "" },
-  { name: "Terminal 3", ip: "", port: "80", username: "admin", password: "" },
+  { name: "Terminal 1", ip: "192.168.31.27", port: "80", api_key: "" },
+  { name: "Terminal 2", ip: "", port: "80", api_key: "" },
+  { name: "Terminal 3", ip: "", port: "80", api_key: "" },
 ];
 
 export default function PortailSection() {
@@ -96,16 +95,16 @@ export default function PortailSection() {
       // Ensure at least 3 terminals
       const terminals = [...raw.terminals];
       while (terminals.length < 3) {
-        terminals.push({ name: `Terminal ${terminals.length + 1}`, ip: "", port: "80", username: "admin", password: "" });
+        terminals.push({ name: `Terminal ${terminals.length + 1}`, ip: "", port: "80", api_key: "" });
       }
       return { terminals, strict_payment_enforcement: raw.strict_payment_enforcement ?? true };
     }
     // Old format: single controller_ip
     return {
       terminals: [
-        { name: "Terminal 1", ip: raw.controller_ip || "192.168.31.27", port: raw.controller_port || "80", username: raw.username || "admin", password: raw.password || raw.api_key || "" },
-        { name: "Terminal 2", ip: "", port: "80", username: "admin", password: "" },
-        { name: "Terminal 3", ip: "", port: "80", username: "admin", password: "" },
+        { name: "Terminal 1", ip: raw.controller_ip || "192.168.31.27", port: raw.controller_port || "80", api_key: raw.api_key || "" },
+        { name: "Terminal 2", ip: "", port: "80", api_key: "" },
+        { name: "Terminal 3", ip: "", port: "80", api_key: "" },
       ],
       strict_payment_enforcement: raw.strict_payment_enforcement ?? true,
     };
@@ -194,7 +193,7 @@ export default function PortailSection() {
 
     try {
       const { data, error } = await supabase.functions.invoke("terminal-test-connection", {
-        body: { ip: terminal.ip, port: terminal.port || "80", username: terminal.username, password: terminal.password },
+        body: { ip: terminal.ip, port: terminal.port || "80", api_key: terminal.api_key },
       });
 
       if (error || !data?.success) {
@@ -289,7 +288,7 @@ export default function PortailSection() {
   const addTerminal = () => {
     setGate((prev) => ({
       ...prev,
-      terminals: [...prev.terminals, { name: `Terminal ${prev.terminals.length + 1}`, ip: "", port: "80", username: "admin", password: "" }],
+      terminals: [...prev.terminals, { name: `Terminal ${prev.terminals.length + 1}`, ip: "", port: "80", api_key: "" }],
     }));
     setTerminalStatuses((prev) => [...prev, { status: "unknown", testing: false }]);
   };
@@ -321,7 +320,7 @@ export default function PortailSection() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-foreground">
-            Contrôle Portail — Hikvision DS-K1T321MFWX (ISAPI)
+            Contrôle Portail — Hikvision ISAPI
           </h2>
           <div className="flex gap-1">
             {gate.terminals.map((t, i) => (
@@ -476,7 +475,7 @@ export default function PortailSection() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Shield className="w-4 h-4" />
-              Configuration des Terminaux — DS-K1T321MFWX (ISAPI)
+              Configuration des Terminaux (ISAPI — Port 80/8000)
             </CardTitle>
             <Button variant="outline" size="sm" onClick={addTerminal} className="gap-1">
               <Plus className="w-3.5 h-3.5" /> Ajouter
@@ -507,7 +506,7 @@ export default function PortailSection() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Adresse IP</Label>
                   <Input value={terminal.ip} onChange={(e) => updateTerminal(index, "ip", e.target.value)} className="mt-1 font-mono text-sm" placeholder="192.168.31.27" />
@@ -518,12 +517,8 @@ export default function PortailSection() {
                   <p className="text-xs text-muted-foreground mt-0.5">80 ou 8000</p>
                 </div>
                 <div>
-                  <Label className="text-xs">Nom d'utilisateur</Label>
-                  <Input value={terminal.username} onChange={(e) => updateTerminal(index, "username", e.target.value)} className="mt-1 text-sm" placeholder="admin" />
-                </div>
-                <div>
                   <Label className="text-xs">Mot de passe</Label>
-                  <Input type="password" value={terminal.password} onChange={(e) => updateTerminal(index, "password", e.target.value)} className="mt-1 font-mono text-sm" placeholder="••••••••" />
+                  <Input type="password" value={terminal.api_key} onChange={(e) => updateTerminal(index, "api_key", e.target.value)} className="mt-1 font-mono text-sm" placeholder="••••••••" />
                 </div>
               </div>
             </div>

@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Accept terminal info from body (multi-terminal support)
     const body = await req.json().catch(() => ({}));
-    const { ip, port = "80", username = "admin", password = "" } = body;
+    const { ip, port = "80", api_key } = body;
 
     if (!ip) {
       return new Response(
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ISAPI connection to Hikvision DS-K1T321MFWX terminal
+    // Attempt ISAPI connection to Hikvision terminal
     const url = `http://${ip}:${port}/ISAPI/System/deviceInfo`;
     try {
       const controller = new AbortController();
@@ -53,20 +54,15 @@ Deno.serve(async (req) => {
       const resp = await fetch(url, {
         method: "GET",
         signal: controller.signal,
-        headers: {
-          Authorization: `Basic ${btoa(`${username}:${password}`)}`,
-        },
+        headers: api_key
+          ? { Authorization: `Basic ${btoa(`admin:${api_key}`)}` }
+          : {},
       });
       clearTimeout(timeout);
 
       if (resp.ok) {
         return new Response(
           JSON.stringify({ success: true, message: "Connexion au terminal réussie" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else if (resp.status === 401) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Identifiants incorrects (nom d'utilisateur ou mot de passe)" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else {
