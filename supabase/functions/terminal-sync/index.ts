@@ -34,7 +34,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Accept members + terminals array from body
     const { members, terminals } = await req.json();
 
     if (!members || !Array.isArray(members)) {
@@ -54,16 +53,12 @@ Deno.serve(async (req) => {
     const authorized = members.filter((m: any) => m.access_status === "authorized");
     const blocked = members.filter((m: any) => m.access_status === "blocked");
 
-    // Process each terminal
     const results = await Promise.allSettled(
-      terminals.map(async (terminal: { name: string; ip: string; port: string; api_key?: string }) => {
+      terminals.map(async (terminal: { name: string; ip: string; port: string; username?: string; password?: string }) => {
         if (!terminal.ip) {
           return { name: terminal.name, success: false, error: "IP non configurée" };
         }
 
-        // In production, this would call ISAPI endpoints on each terminal:
-        // POST http://{ip}:{port}/ISAPI/AccessControl/UserInfo/Record?format=json
-        // DELETE http://{ip}:{port}/ISAPI/AccessControl/UserInfo/Delete?format=json
         try {
           const url = `http://${terminal.ip}:${terminal.port || "80"}/ISAPI/System/deviceInfo`;
           const controller = new AbortController();
@@ -72,14 +67,13 @@ Deno.serve(async (req) => {
           const resp = await fetch(url, {
             method: "GET",
             signal: controller.signal,
-            headers: terminal.api_key
-              ? { Authorization: `Basic ${btoa(`admin:${terminal.api_key}`)}` }
-              : {},
+            headers: {
+              Authorization: `Basic ${btoa(`${terminal.username || "admin"}:${terminal.password || ""}`)}`,
+            },
           });
           clearTimeout(timeout);
 
           if (resp.ok) {
-            // Simulate sync delay per terminal
             await new Promise((r) => setTimeout(r, 500));
             return {
               name: terminal.name,
@@ -87,6 +81,8 @@ Deno.serve(async (req) => {
               authorized_count: authorized.length,
               blocked_count: blocked.length,
             };
+          } else if (resp.status === 401) {
+            return { name: terminal.name, success: false, error: "Identifiants incorrects" };
           } else {
             return { name: terminal.name, success: false, error: `Code ${resp.status}` };
           }
