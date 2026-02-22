@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +15,7 @@ interface MemberData {
   phone: string;
   cin: string;
   date_of_birth: string;
+  gender: string;
 }
 
 export default function EditMemberDialog({ member, onSuccess }: { member: MemberData; onSuccess?: () => void }) {
@@ -34,6 +36,7 @@ export default function EditMemberDialog({ member, onSuccess }: { member: Member
     if (form.phone !== member.phone) changes.phone = form.phone;
     if (form.cin !== member.cin) changes.cin = form.cin;
     if (form.date_of_birth !== member.date_of_birth) changes.date_of_birth = form.date_of_birth;
+    if (form.gender !== member.gender) changes.gender = form.gender;
 
     if (Object.keys(changes).length === 0) {
       toast({ title: 'Aucune modification détectée' });
@@ -92,6 +95,16 @@ export default function EditMemberDialog({ member, onSuccess }: { member: Member
           <div>
             <Label className="text-sm">Date de Naissance</Label>
             <Input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-sm">Genre</Label>
+            <Select value={form.gender || 'homme'} onValueChange={v => setForm({ ...form, gender: v })}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="homme">Homme</SelectItem>
+                <SelectItem value="femme">Femme</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={handleSave} className="w-full gap-2" disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}

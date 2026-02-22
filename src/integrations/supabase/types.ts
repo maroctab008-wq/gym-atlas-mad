@@ -145,6 +145,7 @@ export type Database = {
           created_at: string
           date_of_birth: string
           full_name: string
+          gender: string | null
           id: string
           join_date: string
           phone: string
@@ -157,6 +158,7 @@ export type Database = {
           created_at?: string
           date_of_birth: string
           full_name: string
+          gender?: string | null
           id?: string
           join_date?: string
           phone: string
@@ -169,6 +171,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string
           full_name?: string
+          gender?: string | null
           id?: string
           join_date?: string
           phone?: string

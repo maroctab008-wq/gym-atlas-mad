@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Search, Barcode, Phone, CreditCard as CINIcon, Loader2 } from 'lucide-react';
 import { formatDateFR } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +26,7 @@ interface MemberRow {
   qr_code: string;
   date_of_birth: string;
   join_date: string;
+  gender: string;
 }
 
 function calculateAge(dob: string): number {
@@ -45,12 +47,13 @@ export default function Members() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ fullName: '', phone: '', cin: '', dateOfBirth: '' });
+  const [form, setForm] = useState({ fullName: '', phone: '', cin: '', dateOfBirth: '', gender: 'homme' });
+  const [genderFilter, setGenderFilter] = useState<'all' | 'homme' | 'femme'>('all');
 
   const fetchMembers = async () => {
     const { data } = await supabase
       .from('members')
-      .select('id, full_name, phone, cin, qr_code, date_of_birth, join_date')
+      .select('id, full_name, phone, cin, qr_code, date_of_birth, join_date, gender')
       .order('created_at', { ascending: false });
     if (data) setMembers(data);
     setLoading(false);
@@ -58,18 +61,20 @@ export default function Members() {
 
   useEffect(() => { fetchMembers(); }, []);
 
-  const filtered = members.filter(m =>
-    m.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    m.cin.toLowerCase().includes(search.toLowerCase()) ||
-    m.phone.includes(search)
-  );
+  const filtered = members.filter(m => {
+    const matchesSearch = m.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      m.cin.toLowerCase().includes(search.toLowerCase()) ||
+      m.phone.includes(search);
+    const matchesGender = genderFilter === 'all' || (m.gender || 'homme') === genderFilter;
+    return matchesSearch && matchesGender;
+  });
 
   const handleAdd = async () => {
     if (!form.fullName || !form.phone || !form.cin || !form.dateOfBirth) return;
     setSaving(true);
     const qrCode = `QR-${form.cin.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
     const { error } = await supabase.from('members').insert({
-      full_name: form.fullName, phone: form.phone, cin: form.cin, qr_code: qrCode, date_of_birth: form.dateOfBirth,
+      full_name: form.fullName, phone: form.phone, cin: form.cin, qr_code: qrCode, date_of_birth: form.dateOfBirth, gender: form.gender,
     });
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
@@ -78,7 +83,7 @@ export default function Members() {
         await supabase.from('audit_logs').insert({ user_id: user.id, action: 'create', entity_type: 'member', details: { name: form.fullName, cin: form.cin } });
       }
       toast({ title: 'Membre ajouté avec succès' });
-      setForm({ fullName: '', phone: '', cin: '', dateOfBirth: '' });
+      setForm({ fullName: '', phone: '', cin: '', dateOfBirth: '', gender: 'homme' });
       setDialogOpen(false);
       fetchMembers();
     }
@@ -110,6 +115,16 @@ export default function Members() {
                 <div><Label className="text-sm">Téléphone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1" placeholder="Ex: 0661234567" /></div>
                 <div><Label className="text-sm">CIN</Label><Input value={form.cin} onChange={(e) => setForm({ ...form, cin: e.target.value })} className="mt-1" placeholder="Ex: AB123456" /></div>
                 <div><Label className="text-sm">Date de Naissance</Label><Input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} className="mt-1" /></div>
+                <div>
+                  <Label className="text-sm">Genre</Label>
+                  <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="homme">Homme</SelectItem>
+                      <SelectItem value="femme">Femme</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button onClick={handleAdd} className="w-full" disabled={saving}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Enregistrer
                 </Button>
@@ -120,9 +135,19 @@ export default function Members() {
         </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" placeholder="Rechercher par nom, CIN ou téléphone..." />
+      <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" placeholder="Rechercher par nom, CIN ou téléphone..." />
+        </div>
+        <Select value={genderFilter} onValueChange={(v: 'all' | 'homme' | 'femme') => setGenderFilter(v)}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Genre" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous</SelectItem>
+            <SelectItem value="homme">Homme</SelectItem>
+            <SelectItem value="femme">Femme</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card className="shadow-sm overflow-hidden">
@@ -133,6 +158,7 @@ export default function Members() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Nom</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Téléphone</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">CIN</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide">Genre</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Âge</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Code-barres</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Inscription</TableHead>
@@ -141,7 +167,7 @@ export default function Members() {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={can('members_edit') ? 7 : 6} className="text-center py-8 text-muted-foreground">Aucun membre trouvé</TableCell></TableRow>
+                <TableRow><TableCell colSpan={can('members_edit') ? 8 : 7} className="text-center py-8 text-muted-foreground">Aucun membre trouvé</TableCell></TableRow>
               ) : (
                 filtered.map((member) => {
                   const age = calculateAge(member.date_of_birth);
@@ -151,6 +177,11 @@ export default function Members() {
                       <TableCell className="font-medium">{member.full_name}</TableCell>
                       <TableCell><span className="flex items-center gap-1.5 text-muted-foreground"><Phone className="w-3 h-3" />{member.phone}</span></TableCell>
                       <TableCell><span className="flex items-center gap-1.5 font-mono text-sm"><CINIcon className="w-3 h-3 text-muted-foreground" />{member.cin}</span></TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {(member.gender || 'homme') === 'femme' ? 'Femme' : 'Homme'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{age} ans</span>
