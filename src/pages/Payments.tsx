@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { formatMAD, formatDateFR } from '@/lib/formatters';
-import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2, Receipt, Pencil, FileText, Filter } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Banknote, CreditCard, ArrowRightLeft, FileCheck, Loader2, Receipt, FileText, Filter } from 'lucide-react';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import NewPaymentDialog from '@/components/NewPaymentDialog';
@@ -31,31 +31,15 @@ const expenseCategoryLabels: Record<string, string> = {
 };
 
 interface PaymentRow {
-  id: string;
-  amount_mad: number;
-  amount_due: number;
-  method: string;
-  date: string;
-  invoice_number: string | null;
-  cheque_number: string | null;
-  installment_plan: string | null;
-  member_id: string | null;
-  member_name: string | null;
-  subscription_id: string | null;
+  id: string; amount_mad: number; amount_due: number; method: string; date: string;
+  invoice_number: string | null; cheque_number: string | null; installment_plan: string | null;
+  member_id: string | null; member_name: string | null; subscription_id: string | null;
   members: { full_name: string; cin: string } | null;
 }
 
-interface ExpenseRow {
-  id: string;
-  category: string;
-  description: string | null;
-  amount_mad: number;
-  date: string;
-}
+interface ExpenseRow { id: string; category: string; description: string | null; amount_mad: number; date: string; }
 
-interface BrandingData {
-  gym_name: string; phone: string; website: string; address: string; ice: string; logo_url: string;
-}
+interface BrandingData { gym_name: string; phone: string; website: string; address: string; ice: string; logo_url: string; }
 
 export default function Payments() {
   const { role } = useAuth();
@@ -65,25 +49,21 @@ export default function Payments() {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [branding, setBranding] = useState<BrandingData>({ gym_name: 'GymManager', phone: '', website: '', address: '', ice: '', logo_url: '' });
-
-  // Payment filters
   const [payStartDate, setPayStartDate] = useState('');
   const [payEndDate, setPayEndDate] = useState('');
-
-  // Expense filters
   const [expStartDate, setExpStartDate] = useState('');
   const [expEndDate, setExpEndDate] = useState('');
   const [expCategory, setExpCategory] = useState('all');
 
   const fetchData = async () => {
     const [paymentsRes, expensesRes, brandingRes] = await Promise.all([
-      supabase.from('payments').select('id, amount_mad, amount_due, method, date, invoice_number, cheque_number, installment_plan, member_id, member_name, subscription_id, members(full_name, cin)').order('date', { ascending: false }),
-      supabase.from('expenses').select('id, category, description, amount_mad, date').order('date', { ascending: false }),
-      supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
+      api.get('/payments'),
+      api.get('/expenses'),
+      api.get('/settings/gym_branding'),
     ]);
-    if (paymentsRes.data) setPayments(paymentsRes.data as PaymentRow[]);
+    if (paymentsRes.data) setPayments(paymentsRes.data);
     if (expensesRes.data) setExpenses(expensesRes.data);
-    if (brandingRes.data?.value) setBranding(brandingRes.data.value as unknown as BrandingData);
+    if (brandingRes.data) setBranding(brandingRes.data as BrandingData);
     setLoading(false);
   };
 
@@ -112,21 +92,12 @@ export default function Payments() {
     let amountPaid = payment.amount_mad;
     let amountDue = payment.amount_due || 0;
 
-    // Fetch real subscription data if linked
     if (payment.subscription_id) {
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan, amount_mad, paid_mad')
-        .eq('id', payment.subscription_id)
-        .single();
+      const { data: sub } = await api.get(`/subscriptions/${payment.subscription_id}`);
       if (sub) {
-        // Try plansMap key match, then search by id or raw label
         const planConfig = plansMap[sub.plan];
-        if (planConfig) {
-          planLabel = planConfig.label;
-          planMonths = planConfig.months;
-        } else {
-          // Fallback: search plans array by id
+        if (planConfig) { planLabel = planConfig.label; planMonths = planConfig.months; }
+        else {
           const found = plans.find(p => p.id === sub.plan || p.label.toLowerCase().replace(/\s+/g, '_') === sub.plan);
           planLabel = found?.label || sub.plan;
           planMonths = found?.months || 1;
@@ -142,11 +113,7 @@ export default function Payments() {
       date: formatDateFR(payment.date),
       memberName: payment.members?.full_name || payment.member_name || '—',
       memberCIN: payment.members?.cin || '',
-      planLabel,
-      planMonths,
-      amountTotal,
-      amountPaid,
-      amountDue,
+      planLabel, planMonths, amountTotal, amountPaid, amountDue,
       paymentMethod: payment.method,
       chequeNumber: payment.method === 'cheque' ? (payment.cheque_number || undefined) : undefined,
       branding,
@@ -177,42 +144,25 @@ export default function Payments() {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
-          {/* Payment Date Filters */}
           <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Date de début</Label>
-              <Input type="date" value={payStartDate} onChange={e => setPayStartDate(e.target.value)} className="w-40 h-9" />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Date de fin</Label>
-              <Input type="date" value={payEndDate} onChange={e => setPayEndDate(e.target.value)} className="w-40 h-9" />
-            </div>
+            <div><Label className="text-xs text-muted-foreground">Date de début</Label><Input type="date" value={payStartDate} onChange={e => setPayStartDate(e.target.value)} className="w-40 h-9" /></div>
+            <div><Label className="text-xs text-muted-foreground">Date de fin</Label><Input type="date" value={payEndDate} onChange={e => setPayEndDate(e.target.value)} className="w-40 h-9" /></div>
             {(payStartDate || payEndDate) && (
               <>
-                <Button variant="ghost" size="sm" onClick={() => { setPayStartDate(''); setPayEndDate(''); }}>
-                  Réinitialiser
-                </Button>
-                <div className="ml-auto text-sm font-medium">
-                  Total période: <span className="font-semibold">{formatMAD(filteredPayments.reduce((s, p) => s + p.amount_mad, 0))}</span>
-                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setPayStartDate(''); setPayEndDate(''); }}>Réinitialiser</Button>
+                <div className="ml-auto text-sm font-medium">Total période: <span className="font-semibold">{formatMAD(filteredPayments.reduce((s, p) => s + p.amount_mad, 0))}</span></div>
               </>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             {(['cash', 'tpe', 'cheque', 'transfer'] as const).map((key) => {
-              const mc = methodConfig[key];
-              const Icon = mc.icon;
+              const mc = methodConfig[key]; const Icon = mc.icon;
               return (
                 <Card key={key} className="shadow-sm">
                   <CardContent className="p-5 flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mc.className.split(' ')[0]}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{mc.label}</p>
-                      <p className="text-xl font-semibold">{formatMAD(totalByMethod(key))}</p>
-                    </div>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mc.className.split(' ')[0]}`}><Icon className="w-5 h-5" /></div>
+                    <div><p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{mc.label}</p><p className="text-xl font-semibold">{formatMAD(totalByMethod(key))}</p></div>
                   </CardContent>
                 </Card>
               );
@@ -240,40 +190,27 @@ export default function Payments() {
                   ) : (
                     filteredPayments.map((payment) => {
                       const mc = methodConfig[payment.method] || methodConfig.cash;
-                      const Icon = mc.icon;
-                      const reste = payment.amount_due || 0;
+                      const Icon = mc.icon; const reste = payment.amount_due || 0;
                       return (
                         <TableRow key={payment.id}>
                           <TableCell className="text-muted-foreground text-sm font-mono">{formatDateFR(payment.date)}</TableCell>
                           <TableCell className="font-medium">
                             {payment.members?.full_name || payment.member_name || '—'}
-                            {!payment.members && payment.member_name && (
-                              <span className="text-xs text-muted-foreground ml-1">(supprimé)</span>
-                            )}
+                            {!payment.members && payment.member_name && <span className="text-xs text-muted-foreground ml-1">(supprimé)</span>}
                           </TableCell>
                           <TableCell className="font-mono font-semibold">{formatMAD(payment.amount_mad)}</TableCell>
                           <TableCell className={`font-mono font-semibold ${reste > 0 ? 'text-destructive' : ''}`}>{formatMAD(reste)}</TableCell>
                           <TableCell>
-                            {reste === 0 ? (
-                              <Badge className="bg-success/10 text-success border-success/30" variant="outline">Complet</Badge>
-                            ) : (
-                              <Badge className="bg-warning/10 text-warning border-warning/30" variant="outline">Partiel</Badge>
-                            )}
+                            {reste === 0 ? <Badge className="bg-success/10 text-success border-success/30" variant="outline">Complet</Badge>
+                              : <Badge className="bg-warning/10 text-warning border-warning/30" variant="outline">Partiel</Badge>}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`${mc.className} gap-1`}>
-                              <Icon className="w-3 h-3" />{mc.label}
-                            </Badge>
-                          </TableCell>
+                          <TableCell><Badge variant="outline" className={`${mc.className} gap-1`}><Icon className="w-3 h-3" />{mc.label}</Badge></TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{payment.invoice_number || '—'}</TableCell>
                           {can('payments_create') && (
                             <TableCell>
                               <div className="flex gap-1">
                                 <EditPaymentDialog payment={payment} onSuccess={fetchData} />
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintInvoice(payment)}>
-                                  <FileText className="w-3.5 h-3.5" />
-                                </Button>
-                                
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintInvoice(payment)}><FileText className="w-3.5 h-3.5" /></Button>
                               </div>
                             </TableCell>
                           )}
@@ -288,44 +225,28 @@ export default function Payments() {
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
-          {/* Expense Filters */}
           <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Du</Label>
-              <Input type="date" value={expStartDate} onChange={e => setExpStartDate(e.target.value)} className="w-40 h-9" />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Au</Label>
-              <Input type="date" value={expEndDate} onChange={e => setExpEndDate(e.target.value)} className="w-40 h-9" />
-            </div>
+            <div><Label className="text-xs text-muted-foreground">Du</Label><Input type="date" value={expStartDate} onChange={e => setExpStartDate(e.target.value)} className="w-40 h-9" /></div>
+            <div><Label className="text-xs text-muted-foreground">Au</Label><Input type="date" value={expEndDate} onChange={e => setExpEndDate(e.target.value)} className="w-40 h-9" /></div>
             <div>
               <Label className="text-xs text-muted-foreground">Catégorie</Label>
               <Select value={expCategory} onValueChange={setExpCategory}>
                 <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toutes</SelectItem>
-                  {Object.entries(expenseCategoryLabels).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
+                  {Object.entries(expenseCategoryLabels).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
             {(expStartDate || expEndDate || expCategory !== 'all') && (
-              <Button variant="ghost" size="sm" onClick={() => { setExpStartDate(''); setExpEndDate(''); setExpCategory('all'); }}>
-                Réinitialiser
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setExpStartDate(''); setExpEndDate(''); setExpCategory('all'); }}>Réinitialiser</Button>
             )}
           </div>
 
           <Card className="shadow-sm">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-destructive/10">
-                <Receipt className="w-5 h-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Dépenses</p>
-                <p className="text-xl font-semibold">{formatMAD(totalExpenses)}</p>
-              </div>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-destructive/10"><Receipt className="w-5 h-5 text-destructive" /></div>
+              <div><p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Dépenses</p><p className="text-xl font-semibold">{formatMAD(totalExpenses)}</p></div>
             </CardContent>
           </Card>
 
