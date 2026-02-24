@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface Permissions {
@@ -17,31 +17,15 @@ export interface Permissions {
 }
 
 const ALL_PERMISSIONS: Permissions = {
-  view_dashboard_kpis: true,
-  members_add: true,
-  members_edit: true,
-  members_delete: true,
-  payments_view: true,
-  payments_create: true,
-  payments_delete: true,
-  expenses_view: true,
-  expenses_import: true,
-  access_override: true,
-  settings_access: true,
+  view_dashboard_kpis: true, members_add: true, members_edit: true, members_delete: true,
+  payments_view: true, payments_create: true, payments_delete: true,
+  expenses_view: true, expenses_import: true, access_override: true, settings_access: true,
 };
 
 const NO_PERMISSIONS: Permissions = {
-  view_dashboard_kpis: false,
-  members_add: false,
-  members_edit: false,
-  members_delete: false,
-  payments_view: false,
-  payments_create: false,
-  payments_delete: false,
-  expenses_view: false,
-  expenses_import: false,
-  access_override: false,
-  settings_access: false,
+  view_dashboard_kpis: false, members_add: false, members_edit: false, members_delete: false,
+  payments_view: false, payments_create: false, payments_delete: false,
+  expenses_view: false, expenses_import: false, access_override: false, settings_access: false,
 };
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -81,47 +65,21 @@ export function usePermissions() {
       return;
     }
 
-    const fetchPermissions = async () => {
-      // Admin role always gets all permissions
-      if (role === 'admin') {
-        // Still fetch group name for display, but permissions are full
-        const { data } = await supabase
-          .from('user_roles')
-          .select('group_id, permission_groups(name, permissions)')
-          .eq('user_id', user.id)
-          .limit(1)
-          .single();
+    if (role === 'admin') {
+      setPermissions(ALL_PERMISSIONS);
+      setGroupName('Administrateur');
+      setLoading(false);
+      return;
+    }
 
-        if (data?.permission_groups) {
-          const pg = data.permission_groups as any;
-          setGroupName(pg.name);
-          setPermissions(pg.permissions as Permissions);
-        } else {
-          setPermissions(ALL_PERMISSIONS);
-          setGroupName('Administrateur');
-        }
-      } else {
-        // For non-admin, use group permissions
-        const { data } = await supabase
-          .from('user_roles')
-          .select('group_id, permission_groups(name, permissions)')
-          .eq('user_id', user.id)
-          .limit(1)
-          .single();
-
-        if (data?.permission_groups) {
-          const pg = data.permission_groups as any;
-          setGroupName(pg.name);
-          setPermissions({ ...NO_PERMISSIONS, ...(pg.permissions as Partial<Permissions>) });
-        } else {
-          setPermissions(NO_PERMISSIONS);
-          setGroupName(null);
-        }
+    // Fetch permissions from API
+    api.get(`/auth/permissions`).then(({ data }) => {
+      if (data) {
+        setGroupName(data.group_name || null);
+        setPermissions({ ...NO_PERMISSIONS, ...(data.permissions as Partial<Permissions>) });
       }
       setLoading(false);
-    };
-
-    fetchPermissions();
+    });
   }, [user, role]);
 
   const can = (permission: keyof Permissions) => {

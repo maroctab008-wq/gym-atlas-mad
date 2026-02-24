@@ -44,23 +44,11 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <Label className="text-sm">Email</Label>
-              <Input
-                type="text"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1"
-                placeholder="Exemple@exemple.com"
-              />
+              <Input type="text" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" placeholder="Exemple@exemple.com" />
             </div>
             <div>
               <Label className="text-sm">Mot de passe</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                placeholder="••••••••"
-              />
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1" placeholder="••••••••" />
             </div>
             <Button type="submit" className="w-full gap-2" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}

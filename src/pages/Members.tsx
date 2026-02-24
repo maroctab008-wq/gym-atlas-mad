@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Search, Barcode, Phone, CreditCard as CINIcon, Loader2 } from 'lucide-react';
 import { formatDateFR } from '@/lib/formatters';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
@@ -17,16 +17,9 @@ import EditMemberDialog from '@/components/EditMemberDialog';
 import DeleteMemberButton from '@/components/DeleteMemberButton';
 import ImportFileButton from '@/components/ImportFileButton';
 
-
 interface MemberRow {
-  id: string;
-  full_name: string;
-  phone: string;
-  cin: string;
-  qr_code: string;
-  date_of_birth: string;
-  join_date: string;
-  gender: string;
+  id: string; full_name: string; phone: string; cin: string; qr_code: string;
+  date_of_birth: string; join_date: string; gender: string;
 }
 
 function calculateAge(dob: string): number {
@@ -39,7 +32,7 @@ function calculateAge(dob: string): number {
 }
 
 export default function Members() {
-  const { role, user } = useAuth();
+  const { user } = useAuth();
   const { can } = usePermissions();
   const { toast } = useToast();
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -51,10 +44,7 @@ export default function Members() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'homme' | 'femme'>('all');
 
   const fetchMembers = async () => {
-    const { data } = await supabase
-      .from('members')
-      .select('id, full_name, phone, cin, qr_code, date_of_birth, join_date, gender')
-      .order('created_at', { ascending: false });
+    const { data } = await api.get('/members');
     if (data) setMembers(data);
     setLoading(false);
   };
@@ -63,8 +53,7 @@ export default function Members() {
 
   const filtered = members.filter(m => {
     const matchesSearch = m.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      m.cin.toLowerCase().includes(search.toLowerCase()) ||
-      m.phone.includes(search);
+      m.cin.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search);
     const matchesGender = genderFilter === 'all' || (m.gender || 'homme') === genderFilter;
     return matchesSearch && matchesGender;
   });
@@ -72,16 +61,13 @@ export default function Members() {
   const handleAdd = async () => {
     if (!form.fullName || !form.phone || !form.cin || !form.dateOfBirth) return;
     setSaving(true);
-    const qrCode = `QR-${form.cin.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.from('members').insert({
-      full_name: form.fullName, phone: form.phone, cin: form.cin, qr_code: qrCode, date_of_birth: form.dateOfBirth, gender: form.gender,
+    const { error } = await api.post('/members', {
+      full_name: form.fullName, phone: form.phone, cin: form.cin,
+      date_of_birth: form.dateOfBirth, gender: form.gender,
     });
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({ user_id: user.id, action: 'create', entity_type: 'member', details: { name: form.fullName, cin: form.cin } });
-      }
       toast({ title: 'Membre ajouté avec succès' });
       setForm({ fullName: '', phone: '', cin: '', dateOfBirth: '', gender: 'homme' });
       setDialogOpen(false);
@@ -177,11 +163,7 @@ export default function Members() {
                       <TableCell className="font-medium">{member.full_name}</TableCell>
                       <TableCell><span className="flex items-center gap-1.5 text-muted-foreground"><Phone className="w-3 h-3" />{member.phone}</span></TableCell>
                       <TableCell><span className="flex items-center gap-1.5 font-mono text-sm"><CINIcon className="w-3 h-3 text-muted-foreground" />{member.cin}</span></TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {(member.gender || 'homme') === 'femme' ? 'Femme' : 'Homme'}
-                        </Badge>
-                      </TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{(member.gender || 'homme') === 'femme' ? 'Femme' : 'Homme'}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{age} ans</span>

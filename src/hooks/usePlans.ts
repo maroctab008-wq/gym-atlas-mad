@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 export interface PlanConfig {
   id: string;
@@ -14,11 +14,7 @@ export function usePlans() {
   const [loading, setLoading] = useState(true);
 
   const fetchPlans = async () => {
-    const { data } = await supabase
-      .from('plan_configs')
-      .select('id, label, months, price_mad, is_active')
-      .eq('is_active', true)
-      .order('months');
+    const { data } = await api.get('/plans');
     if (data) setPlans(data);
     setLoading(false);
   };
