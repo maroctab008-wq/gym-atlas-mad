@@ -95,6 +95,46 @@ router.post('/change-password', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/auth/check-admin — vérifie si le compte admin est correctement configuré
+router.get('/check-admin', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.full_name, u.status, ur.role
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id
+       WHERE u.email = 'admin@admin.com'`
+    );
+
+    if (!rows.length) {
+      return res.json({
+        exists: false,
+        message: "Le compte admin@admin.com n'existe pas. Exécutez le script fix-admin.sql."
+      });
+    }
+
+    const admin = rows[0];
+    const issues = [];
+    if (admin.status !== 'active') issues.push(`Statut actuel: "${admin.status}" (devrait être "active")`);
+    if (admin.role !== 'admin') issues.push(`Rôle actuel: "${admin.role || 'aucun'}" (devrait être "admin")`);
+
+    res.json({
+      exists: true,
+      id: admin.id,
+      email: admin.email,
+      full_name: admin.full_name,
+      status: admin.status,
+      role: admin.role || 'aucun',
+      ok: issues.length === 0,
+      issues,
+      message: issues.length === 0
+        ? '✅ Le compte admin est correctement configuré.'
+        : `⚠️ Problèmes détectés: ${issues.join('; ')}`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/auth/admin-change-password (admin only)
 router.post('/admin-change-password', authenticate, requireAdmin, async (req, res) => {
   const { userId, newPassword } = req.body;
