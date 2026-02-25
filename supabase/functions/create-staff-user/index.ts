@@ -31,7 +31,26 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const { email, password, fullName, role, groupId } = await req.json();
+  const body = await req.json();
+  const action = body.action || 'create';
+
+  // Handle toggle_status action
+  if (action === 'toggle_status') {
+    const { userId, status } = body;
+    if (!userId || !status) {
+      return new Response(JSON.stringify({ error: "userId et status requis" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { error } = await supabase.from("profiles").update({ status }).eq("user_id", userId);
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ message: "Statut mis à jour" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Default: create user
+  const { email, password, fullName, role, groupId } = body;
 
   if (!email || !password || !fullName) {
     return new Response(JSON.stringify({ error: "Champs obligatoires manquants" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
