@@ -70,6 +70,54 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/auth/permissions — retourne les permissions du user connecté (pour staff)
+router.get('/permissions', authenticate, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ur.role, ur.group_id, pg.name as group_name, pg.permissions
+       FROM user_roles ur
+       LEFT JOIN permission_groups pg ON pg.id = ur.group_id
+       WHERE ur.user_id = $1`,
+      [req.user.id]
+    );
+
+    if (!rows.length) {
+      return res.json({ role: 'staff', group_name: null, permissions: {} });
+    }
+
+    const row = rows[0];
+
+    // Admin = toutes les permissions
+    if (row.role === 'admin') {
+      return res.json({
+        role: 'admin',
+        group_name: 'Administrateur',
+        permissions: {
+          view_dashboard_kpis: true, members_add: true, members_edit: true, members_delete: true,
+          payments_view: true, payments_create: true, payments_delete: true,
+          expenses_view: true, expenses_import: true, access_override: true, settings_access: true,
+        }
+      });
+    }
+
+    // Staff avec groupe = permissions du groupe
+    // Staff sans groupe = permissions par défaut (lecture seule)
+    const defaultStaffPerms = {
+      view_dashboard_kpis: false, members_add: true, members_edit: true, members_delete: false,
+      payments_view: true, payments_create: true, payments_delete: false,
+      expenses_view: true, expenses_import: false, access_override: false, settings_access: false,
+    };
+
+    res.json({
+      role: row.role,
+      group_name: row.group_name || 'Staff (défaut)',
+      permissions: row.permissions || defaultStaffPerms,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/auth/change-password
 router.post('/change-password', authenticate, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
