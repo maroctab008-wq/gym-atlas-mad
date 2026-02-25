@@ -1,16 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api, setToken, clearToken } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
 type AppRole = 'admin' | 'staff';
 
-interface UserData {
-  id: string;
-  email: string;
-}
-
 interface AuthContextType {
-  user: UserData | null;
-  session: any;
+  user: User | null;
+  session: Session | null;
   role: AppRole | null;
   profile: { full_name: string; email: string } | null;
   loading: boolean;
@@ -21,51 +17,59 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount, check stored token by calling /auth/me
+  const loadUserData = async (userId: string) => {
+    const [roleRes, profileRes] = await Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      supabase.from('profiles').select('full_name, email').eq('user_id', userId).maybeSingle(),
+    ]);
+    setRole((roleRes.data?.role as AppRole) ?? null);
+    setProfile(profileRes.data ?? null);
+  };
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api.get('/auth/me').then(({ data, error }) => {
-      if (data && !error) {
-        setUser({ id: data.id, email: data.email });
-        setRole(data.role as AppRole);
-        setProfile({ full_name: data.full_name, email: data.email });
+    // Set up listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(() => {
+          loadUserData(session.user.id).then(() => setLoading(false));
+        }, 0);
       } else {
-        clearToken();
+        setRole(null);
+        setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await api.post('/auth/login', { email, password });
-    if (error || !data?.token) {
-      return { error: error || 'Erreur de connexion' };
-    }
-    setToken(data.token);
-    setUser({ id: data.user.id, email: data.user.email });
-    setRole(data.user.role as AppRole);
-    setProfile({ full_name: data.user.full_name, email: data.user.email });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
     return { error: null };
   };
 
   const signOut = async () => {
-    clearToken();
-    setUser(null);
-    setRole(null);
-    setProfile(null);
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session: user, role, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, profile, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
