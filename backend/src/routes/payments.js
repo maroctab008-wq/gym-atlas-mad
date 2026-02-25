@@ -98,6 +98,20 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/payments/members-with-subs
+router.get('/members-with-subs', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT m.id, m.full_name, m.cin
+       FROM members m
+       ORDER BY m.full_name`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/payments/next-invoice
 router.get('/next-invoice', async (req, res) => {
   try {
