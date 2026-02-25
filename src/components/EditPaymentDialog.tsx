@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Pencil } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { formatMAD } from '@/lib/formatters';
 
@@ -27,7 +26,6 @@ interface SubInfo {
 }
 
 export default function EditPaymentDialog({ payment, onSuccess }: { payment: PaymentData; onSuccess?: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,14 +40,9 @@ export default function EditPaymentDialog({ payment, onSuccess }: { payment: Pay
     setMethod(payment.method);
     setChequeNumber(payment.cheque_number || '');
     if (payment.subscription_id) {
-      supabase
-        .from('subscriptions')
-        .select('id, amount_mad, paid_mad, status')
-        .eq('id', payment.subscription_id)
-        .single()
-        .then(({ data }) => {
-          if (data) setSubInfo(data);
-        });
+      api.get(`/subscriptions/${payment.subscription_id}`).then(({ data }) => {
+        if (data) setSubInfo(data);
+      });
     } else {
       setSubInfo(null);
     }
@@ -87,31 +80,11 @@ export default function EditPaymentDialog({ payment, onSuccess }: { payment: Pay
       return;
     }
 
-    const { error } = await supabase.from('payments').update(changes).eq('id', payment.id);
+    const { error } = await api.put(`/payments/${payment.id}`, changes);
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
       setSaving(false);
       return;
-    }
-
-    // Update subscription paid_mad if linked and additional amount was added
-    if (addNum > 0 && subInfo) {
-      const newPaid = alreadyPaid + addNum;
-      const newStatus = newPaid >= totalDue ? 'active' : subInfo.status;
-      await supabase.from('subscriptions').update({
-        paid_mad: newPaid,
-        status: newStatus,
-      }).eq('id', subInfo.id);
-    }
-
-    if (user) {
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action: 'update',
-        entity_type: 'payment',
-        entity_id: payment.id,
-        details: { changes, previous: { amount_mad: payment.amount_mad, method: payment.method } },
-      });
     }
 
     toast({

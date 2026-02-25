@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, KeyRound } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -16,7 +15,6 @@ interface Props {
 }
 
 export default function ChangePasswordDialog({ open, onOpenChange, userId, userName }: Props) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,18 +30,10 @@ export default function ChangePasswordDialog({ open, onOpenChange, userId, userN
       return;
     }
     setSaving(true);
-    const { data, error } = await supabase.functions.invoke('admin-change-password', {
-      body: { userId, newPassword },
-    });
-    if (error || data?.error) {
-      toast({ title: 'Erreur', description: data?.error || error?.message, variant: 'destructive' });
+    const { error } = await api.put(`/users/${userId}/password`, { newPassword });
+    if (error) {
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'password_change', entity_type: 'user',
-          entity_id: userId, details: { target_user: userName },
-        });
-      }
       toast({ title: 'Mot de passe modifié avec succès' });
       setNewPassword('');
       setConfirmPassword('');

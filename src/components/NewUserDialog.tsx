@@ -5,14 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, UserPlus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface GroupOption { id: string; name: string; }
 
 export default function NewUserDialog({ onSuccess }: { onSuccess?: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,7 +19,7 @@ export default function NewUserDialog({ onSuccess }: { onSuccess?: () => void })
 
   useEffect(() => {
     if (open) {
-      supabase.from('permission_groups').select('id, name').order('name').then(({ data }) => {
+      api.get('/users/groups').then(({ data }) => {
         if (data) setGroups(data);
       });
     }
@@ -38,20 +36,17 @@ export default function NewUserDialog({ onSuccess }: { onSuccess?: () => void })
     }
     setSaving(true);
 
-    // Use edge function to create user with service role
-    const { data, error } = await supabase.functions.invoke('create-staff-user', {
-      body: { email: form.email, password: form.password, fullName: form.fullName, role: form.role, groupId: form.groupId || null },
+    const { error } = await api.post('/users', {
+      email: form.email,
+      password: form.password,
+      fullName: form.fullName,
+      role: form.role,
+      groupId: form.groupId || null,
     });
 
-    if (error || data?.error) {
-      toast({ title: 'Erreur', description: data?.error || error?.message, variant: 'destructive' });
+    if (error) {
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'create', entity_type: 'user',
-          details: { email: form.email, role: form.role, full_name: form.fullName },
-        });
-      }
       toast({ title: 'Utilisateur créé avec succès' });
       setOpen(false);
       setForm({ fullName: '', email: '', password: '', role: 'staff', groupId: '' });

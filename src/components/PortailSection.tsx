@@ -32,7 +32,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 
@@ -90,17 +90,14 @@ export default function PortailSection() {
     { name: string; success: boolean; error?: string }[] | null
   >(null);
 
-  // Migrate old single-terminal format to multi-terminal
   const migrateGateData = (raw: Record<string, any>): GateData => {
     if (raw.terminals && Array.isArray(raw.terminals)) {
-      // Ensure at least 3 terminals
       const terminals = [...raw.terminals];
       while (terminals.length < 3) {
         terminals.push({ name: `Terminal ${terminals.length + 1}`, ip: "", port: "80", username: "admin", password: "" });
       }
       return { terminals, strict_payment_enforcement: raw.strict_payment_enforcement ?? true };
     }
-    // Old format: single controller_ip
     return {
       terminals: [
         { name: "Terminal 1", ip: raw.controller_ip || "192.168.31.27", port: raw.controller_port || "80", username: raw.username || "admin", password: raw.password || raw.api_key || "" },
@@ -113,7 +110,7 @@ export default function PortailSection() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("app_settings").select("key, value");
+      const { data } = await api.get("/settings");
       if (data) {
         for (const row of data) {
           const v = row.value as Record<string, any>;
@@ -133,45 +130,8 @@ export default function PortailSection() {
   const loadMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      const { data: membersData } = await supabase
-        .from("members")
-        .select("id, full_name")
-        .order("full_name");
-
-      const { data: subscriptions } = await supabase
-        .from("subscriptions")
-        .select("member_id, status, amount_mad, paid_mad, end_date")
-        .in("status", ["active", "pending", "expired"]);
-
-      if (!membersData) { setMembers([]); return; }
-
-      const syncMembers: SyncMember[] = membersData.map((m) => {
-        const memberSubs = (subscriptions || [])
-          .filter((s) => s.member_id === m.id)
-          .sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
-
-        const activeSub = memberSubs.find((s) => s.status === "active") || memberSubs[0];
-
-        if (!activeSub) {
-          return { id: m.id, full_name: m.full_name, payment_status: "Aucun abonnement", access_status: "blocked" as const, balance_due: 0, subscription_status: "none" };
-        }
-
-        const balanceDue = activeSub.amount_mad - activeSub.paid_mad;
-        const isActive = activeSub.status === "active";
-        const isPaid = balanceDue <= 0;
-        const isAuthorized = isActive && isPaid;
-
-        return {
-          id: m.id,
-          full_name: m.full_name,
-          payment_status: isPaid ? "Soldé" : `Reste: ${balanceDue} MAD`,
-          access_status: isAuthorized ? ("authorized" as const) : ("blocked" as const),
-          balance_due: balanceDue,
-          subscription_status: activeSub.status,
-        };
-      });
-
-      setMembers(syncMembers);
+      const { data } = await api.get("/terminal/sync-members");
+      if (data) setMembers(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -193,8 +153,8 @@ export default function PortailSection() {
     setTerminalStatuses((prev) => prev.map((s, i) => i === index ? { ...s, testing: true } : s));
 
     try {
-      const { data, error } = await supabase.functions.invoke("terminal-test-connection", {
-        body: { ip: terminal.ip, port: terminal.port || "80", username: terminal.username, password: terminal.password },
+      const { data, error } = await api.post("/terminal/test-connection", {
+        ip: terminal.ip, port: terminal.port || "80", username: terminal.username, password: terminal.password,
       });
 
       if (error || !data?.success) {
@@ -239,8 +199,8 @@ export default function PortailSection() {
     try {
       setSyncProgress(30);
 
-      const { data, error } = await supabase.functions.invoke("terminal-sync", {
-        body: { members, terminals: targetTerminals },
+      const { data, error } = await api.post("/terminal/sync", {
+        members, terminals: targetTerminals,
       });
 
       setSyncProgress(80);
@@ -270,12 +230,9 @@ export default function PortailSection() {
 
   const saveGateConfig = async () => {
     setSaving("gate_control");
-    const { error } = await supabase
-      .from("app_settings")
-      .update({ value: gate as any })
-      .eq("key", "gate_control");
+    const { error } = await api.put("/settings/gate_control", { value: gate });
     setSaving("");
-    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    if (error) toast({ title: "Erreur", description: error, variant: "destructive" });
     else toast({ title: "Configuration enregistrée" });
   };
 

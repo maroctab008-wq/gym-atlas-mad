@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Pencil } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface MemberData {
@@ -19,7 +18,6 @@ interface MemberData {
 }
 
 export default function EditMemberDialog({ member, onSuccess }: { member: MemberData; onSuccess?: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,19 +42,10 @@ export default function EditMemberDialog({ member, onSuccess }: { member: Member
       return;
     }
 
-    const { error } = await supabase.from('members').update(changes).eq('id', member.id);
+    const { error } = await api.put(`/members/${member.id}`, changes);
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action: 'update',
-          entity_type: 'member',
-          entity_id: member.id,
-          details: { name: member.full_name, changes, previous: { full_name: member.full_name, phone: member.phone, cin: member.cin, date_of_birth: member.date_of_birth } },
-        });
-      }
       toast({ title: 'Membre modifié avec succès' });
       setOpen(false);
       onSuccess?.();

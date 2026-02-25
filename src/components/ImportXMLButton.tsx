@@ -3,8 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Upload, Loader2, FileUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface ParsedMember {
@@ -15,7 +14,6 @@ interface ParsedMember {
 }
 
 export default function ImportXMLButton({ onSuccess }: { onSuccess: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,20 +90,13 @@ export default function ImportXMLButton({ onSuccess }: { onSuccess: () => void }
       phone: m.phone,
       cin: m.cin,
       date_of_birth: m.date_of_birth,
-      qr_code: `QR-${m.cin.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`,
     }));
 
-    const { error } = await supabase.from('members').insert(rows);
+    const { error } = await api.post('/members/import', { members: rows });
 
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'import', entity_type: 'member',
-          details: { count: rows.length, source: 'xml' },
-        });
-      }
       toast({ title: `${rows.length} membres importés avec succès` });
       setDialogOpen(false);
       setParsed([]);

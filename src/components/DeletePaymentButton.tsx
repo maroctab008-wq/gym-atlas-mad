@@ -5,8 +5,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Trash2, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -15,23 +14,16 @@ interface Props {
 }
 
 export default function DeletePaymentButton({ paymentId, onSuccess }: Props) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase.from('payments').delete().eq('id', paymentId);
+    const { error } = await api.delete(`/payments/${paymentId}`);
     if (error) {
-      toast({ title: 'Erreur de suppression', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur de suppression', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'delete', entity_type: 'payment',
-          entity_id: paymentId, details: {},
-        });
-      }
       toast({ title: 'Élément supprimé avec succès' });
       onSuccess?.();
     }

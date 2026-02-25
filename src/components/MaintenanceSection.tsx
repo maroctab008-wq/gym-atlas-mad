@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Download, Trash2, Loader2, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -22,18 +22,17 @@ export default function MaintenanceSection() {
     setExporting(true);
     try {
       const [membersRes, subscriptionsRes, paymentsRes, plansRes, settingsRes, expensesRes] = await Promise.all([
-        supabase.from('members').select('*'),
-        supabase.from('subscriptions').select('*'),
-        supabase.from('payments').select('*'),
-        supabase.from('plan_configs').select('*'),
-        supabase.from('app_settings').select('*'),
-        supabase.from('expenses').select('*'),
+        api.get('/members'),
+        api.get('/subscriptions'),
+        api.get('/payments'),
+        api.get('/plans'),
+        api.get('/settings'),
+        api.get('/expenses'),
       ]);
 
       const wb = XLSX.utils.book_new();
 
-      // Membres
-      const membersData = (membersRes.data || []).map(m => ({
+      const membersData = (membersRes.data || []).map((m: any) => ({
         'Nom complet': m.full_name,
         'Téléphone': m.phone,
         'CIN': m.cin,
@@ -44,8 +43,7 @@ export default function MaintenanceSection() {
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(membersData), 'Membres');
 
-      // Abonnements
-      const subsData = (subscriptionsRes.data || []).map(s => ({
+      const subsData = (subscriptionsRes.data || []).map((s: any) => ({
         'Membre': s.member_name,
         'Plan': s.plan,
         'Début': s.start_date,
@@ -57,8 +55,7 @@ export default function MaintenanceSection() {
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(subsData), 'Abonnements');
 
-      // Paiements
-      const paymentsData = (paymentsRes.data || []).map(p => ({
+      const paymentsData = (paymentsRes.data || []).map((p: any) => ({
         'Membre': p.member_name,
         'N° Facture': p.invoice_number,
         'Montant (MAD)': p.amount_mad,
@@ -70,8 +67,7 @@ export default function MaintenanceSection() {
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsData), 'Paiements');
 
-      // Plans
-      const plansData = (plansRes.data || []).map(p => ({
+      const plansData = (plansRes.data || []).map((p: any) => ({
         'Label': p.label,
         'Mois': p.months,
         'Prix (MAD)': p.price_mad,
@@ -79,8 +75,7 @@ export default function MaintenanceSection() {
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(plansData), 'Plans');
 
-      // Dépenses
-      const expensesData = (expensesRes.data || []).map(e => ({
+      const expensesData = (expensesRes.data || []).map((e: any) => ({
         'Catégorie': e.category,
         'Description': e.description || '',
         'Montant (MAD)': e.amount_mad,
@@ -89,8 +84,7 @@ export default function MaintenanceSection() {
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expensesData), 'Dépenses');
 
-      // Paramètres
-      const settingsData = (settingsRes.data || []).map(s => ({
+      const settingsData = (settingsRes.data || []).map((s: any) => ({
         'Clé': s.key,
         'Valeur': typeof s.value === 'object' ? JSON.stringify(s.value) : String(s.value),
         'Mis à jour le': s.updated_at,
@@ -109,10 +103,8 @@ export default function MaintenanceSection() {
     if (!password || !profile?.email) return;
     setResetting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reset-database', {
-        body: { email: profile.email, password },
-      });
-      if (error) throw error;
+      const { data, error } = await api.post('/settings/reset-database', { email: profile.email, password });
+      if (error) throw new Error(error);
       if (data?.error) throw new Error(data.error);
       toast({ title: 'Base réinitialisée', description: 'Toutes les données ont été supprimées.' });
       setResetDialogOpen(false);
