@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Receipt } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 const EXPENSE_CATEGORIES = [
@@ -19,7 +18,6 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export default function ExpenseDialog({ onSuccess }: { onSuccess?: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,25 +38,16 @@ export default function ExpenseDialog({ onSuccess }: { onSuccess?: () => void })
     }
 
     setSaving(true);
-    const { error } = await supabase.from('expenses').insert({
+    const { error } = await api.post('/expenses', {
       category,
       description: description || null,
       amount_mad: amountNum,
       date,
-      created_by: user?.id || null,
     });
 
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action: 'create',
-          entity_type: 'expense',
-          details: { category, amount: amountNum, description },
-        });
-      }
       toast({ title: 'Dépense enregistrée' });
       setOpen(false);
       setCategory('');

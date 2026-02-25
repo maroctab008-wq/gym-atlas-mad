@@ -4,8 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Upload, Loader2, FileUp, ChevronDown, FileSpreadsheet, FileText, Download } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 
@@ -139,7 +138,6 @@ function downloadTemplate() {
 }
 
 export default function ImportFileButton({ onSuccess }: { onSuccess: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -197,20 +195,13 @@ export default function ImportFileButton({ onSuccess }: { onSuccess: () => void 
       phone: m.phone,
       cin: m.cin,
       date_of_birth: m.date_of_birth,
-      qr_code: `QR-${m.cin.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`,
     }));
 
-    const { error } = await supabase.from('members').insert(rows);
+    const { error } = await api.post('/members/import', { members: rows });
 
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id, action: 'import', entity_type: 'member',
-          details: { count: rows.length, source: 'file' },
-        });
-      }
       toast({ title: `${rows.length} membres importés avec succès` });
       setDialogOpen(false);
       setParsed([]);

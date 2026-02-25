@@ -5,10 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, FileText } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { formatDateFR } from '@/lib/formatters';
 import { usePlans } from '@/hooks/usePlans';
 
 interface MemberOption {
@@ -27,17 +25,7 @@ interface SubscriptionOption {
   status: string;
 }
 
-interface BrandingData {
-  gym_name: string;
-  phone: string;
-  website: string;
-  address: string;
-  ice: string;
-  logo_url: string;
-}
-
 export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSuccess?: () => void; triggerClassName?: string }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const { plansMap } = usePlans();
   const [open, setOpen] = useState(false);
@@ -45,7 +33,6 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
 
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionOption[]>([]);
-  const [branding, setBranding] = useState<BrandingData>({ gym_name: 'GymManager', phone: '', website: '', address: '', ice: '', logo_url: '' });
 
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [selectedSubId, setSelectedSubId] = useState('');
@@ -56,44 +43,16 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
 
   useEffect(() => {
     if (!open) return;
-    const load = async () => {
-      const [membersRes, brandingRes] = await Promise.all([
-        supabase
-          .from('members')
-          .select('id, full_name, cin, subscriptions!inner(status)')
-          .in('subscriptions.status', ['active', 'pending'])
-          .order('full_name'),
-        supabase.from('app_settings').select('value').eq('key', 'gym_branding').single(),
-      ]);
-      if (membersRes.data) {
-        // Deduplicate members (a member may have multiple matching subscriptions)
-        const uniqueMembers = new Map<string, MemberOption>();
-        for (const m of membersRes.data) {
-          if (!uniqueMembers.has(m.id)) {
-            uniqueMembers.set(m.id, { id: m.id, full_name: m.full_name, cin: m.cin });
-          }
-        }
-        setMembers(Array.from(uniqueMembers.values()));
-      }
-      if (brandingRes.data?.value) {
-        setBranding(brandingRes.data.value as unknown as BrandingData);
-      }
-    };
-    load();
+    api.get('/payments/members-with-subs').then(({ data }) => {
+      if (data) setMembers(data);
+    });
   }, [open]);
 
   useEffect(() => {
     if (!selectedMemberId) { setSubscriptions([]); return; }
-    const loadSubs = async () => {
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('id, plan, amount_mad, paid_mad, start_date, end_date, status')
-        .eq('member_id', selectedMemberId)
-        .in('status', ['active', 'pending'])
-        .order('created_at', { ascending: false });
+    api.get(`/subscriptions/by-member/${selectedMemberId}`).then(({ data }) => {
       if (data) setSubscriptions(data);
-    };
-    loadSubs();
+    });
   }, [selectedMemberId]);
 
   const selectedSub = subscriptions.find(s => s.id === selectedSubId);
@@ -114,21 +73,8 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
 
     setSaving(true);
 
-    // Generate structured invoice number: YYYY-MM-XXX
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const prefix = `${year}-${month}`;
-    const { count } = await supabase
-      .from('payments')
-      .select('id', { count: 'exact', head: true })
-      .like('invoice_number', `${prefix}-%`);
-    const seq = String((count || 0) + 1).padStart(3, '0');
-    const invoiceNumber = `${prefix}-${seq}`;
-    const computedReste = selectedSub ? Math.max(0, remaining - amountNum) : 0;
-
     const member = members.find(m => m.id === selectedMemberId);
-    const { error } = await supabase.from('payments').insert({
+    const { data, error } = await api.post('/payments', {
       member_id: selectedMemberId,
       member_name: member?.full_name || '',
       subscription_id: selectedSubId || null,
@@ -136,38 +82,15 @@ export default function NewPaymentDialog({ onSuccess, triggerClassName }: { onSu
       method,
       date: paymentDate,
       cheque_number: method === 'cheque' ? chequeNumber : null,
-      invoice_number: invoiceNumber,
-      amount_due: computedReste,
     });
 
     if (error) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
       setSaving(false);
       return;
     }
 
-    // Update subscription paid_mad if linked
-    if (selectedSubId && selectedSub) {
-      const newPaid = selectedSub.paid_mad + amountNum;
-      const newStatus = newPaid >= selectedSub.amount_mad ? 'active' : 'pending';
-      await supabase.from('subscriptions').update({
-        paid_mad: newPaid,
-        status: newStatus,
-      }).eq('id', selectedSubId);
-    }
-
-    // Audit log
-    if (user) {
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action: 'create',
-        entity_type: 'payment',
-        entity_id: invoiceNumber,
-        details: { member_id: selectedMemberId, amount: amountNum, method },
-      });
-    }
-
-    toast({ title: 'Paiement enregistré', description: `Facture ${invoiceNumber} disponible au téléchargement.` });
+    toast({ title: 'Paiement enregistré', description: `Facture ${data?.invoice_number || ''} disponible au téléchargement.` });
     setSaving(false);
     setOpen(false);
     resetForm();

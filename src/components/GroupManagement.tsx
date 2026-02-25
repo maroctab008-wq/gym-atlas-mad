@@ -8,9 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Loader2, Shield } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 import { PERMISSION_LABELS, PERMISSION_CATEGORIES, type Permissions } from '@/hooks/usePermissions';
 
 interface GroupRow {
@@ -35,7 +34,6 @@ const defaultPerms: Permissions = {
 };
 
 export default function GroupManagement() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,11 +44,8 @@ export default function GroupManagement() {
   const [perms, setPerms] = useState<Permissions>({ ...defaultPerms });
 
   const fetchGroups = async () => {
-    const { data } = await supabase
-      .from('permission_groups')
-      .select('*')
-      .order('created_at');
-    if (data) setGroups(data.map(g => ({ ...g, permissions: g.permissions as unknown as Permissions })));
+    const { data } = await api.get('/users/groups');
+    if (data) setGroups(data.map((g: any) => ({ ...g, permissions: g.permissions as Permissions })));
     setLoading(false);
   };
 
@@ -79,36 +74,19 @@ export default function GroupManagement() {
     setSaving(true);
 
     if (editingGroup) {
-      const { error } = await supabase
-        .from('permission_groups')
-        .update({ name: name.trim(), permissions: perms as any })
-        .eq('id', editingGroup.id);
+      const { error } = await api.put(`/users/groups/${editingGroup.id}`, { name: name.trim(), permissions: perms });
       if (error) {
-        toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+        toast({ title: 'Erreur', description: error, variant: 'destructive' });
       } else {
-        if (user) {
-          await supabase.from('audit_logs').insert([{
-            user_id: user.id, action: 'update', entity_type: 'permission_group',
-            entity_id: editingGroup.id, details: { name: name.trim(), permissions: perms } as any,
-          }]);
-        }
         toast({ title: 'Groupe modifié' });
         setDialogOpen(false);
         fetchGroups();
       }
     } else {
-      const { error } = await supabase
-        .from('permission_groups')
-        .insert({ name: name.trim(), permissions: perms as any });
+      const { error } = await api.post('/users/groups', { name: name.trim(), permissions: perms });
       if (error) {
-        toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+        toast({ title: 'Erreur', description: error, variant: 'destructive' });
       } else {
-        if (user) {
-          await supabase.from('audit_logs').insert([{
-            user_id: user.id, action: 'create', entity_type: 'permission_group',
-            details: { name: name.trim() } as any,
-          }]);
-        }
         toast({ title: 'Groupe créé' });
         setDialogOpen(false);
         fetchGroups();

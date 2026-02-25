@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, Plus, Pencil, Trash2, CreditCard } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { formatMAD } from '@/lib/formatters';
 
@@ -29,7 +29,7 @@ export default function PlanManagement({ onPlansChanged }: { onPlansChanged?: ()
   const [form, setForm] = useState({ label: '', months: '', price_mad: '' });
 
   const fetchPlans = async () => {
-    const { data } = await supabase.from('plan_configs').select('*').order('months');
+    const { data } = await api.get('/plans');
     if (data) setPlans(data);
     setLoading(false);
   };
@@ -45,12 +45,12 @@ export default function PlanManagement({ onPlansChanged }: { onPlansChanged?: ()
     const payload = { label: form.label, months: parseInt(form.months), price_mad: parseFloat(form.price_mad), is_active: true };
 
     if (editingId) {
-      const { error } = await supabase.from('plan_configs').update(payload).eq('id', editingId);
-      if (error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      const { error } = await api.put(`/plans/${editingId}`, payload);
+      if (error) toast({ title: 'Erreur', description: error, variant: 'destructive' });
       else toast({ title: 'Plan modifié' });
     } else {
-      const { error } = await supabase.from('plan_configs').insert(payload);
-      if (error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+      const { error } = await api.post('/plans', payload);
+      if (error) toast({ title: 'Erreur', description: error, variant: 'destructive' });
       else toast({ title: 'Plan créé' });
     }
 
@@ -63,7 +63,7 @@ export default function PlanManagement({ onPlansChanged }: { onPlansChanged?: ()
   };
 
   const toggleActive = async (plan: PlanRow) => {
-    await supabase.from('plan_configs').update({ is_active: !plan.is_active }).eq('id', plan.id);
+    await api.put(`/plans/${plan.id}`, { is_active: !plan.is_active });
     fetchPlans();
     onPlansChanged?.();
   };
