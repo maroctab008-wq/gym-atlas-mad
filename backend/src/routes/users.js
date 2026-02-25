@@ -11,13 +11,23 @@ router.use(authenticate, requireAdmin);
 router.get('/', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT u.id, u.email, u.full_name, u.status, u.created_at,
+      `SELECT u.id as user_id, u.email, u.full_name, u.status, u.created_at,
               ur.role, ur.group_id, pg.name as group_name
        FROM users u
        LEFT JOIN user_roles ur ON ur.user_id = u.id
        LEFT JOIN permission_groups pg ON pg.id = ur.group_id
        ORDER BY u.created_at DESC`
     );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/users/groups
+router.get('/groups', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name FROM permission_groups ORDER BY name');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -49,6 +59,52 @@ router.post('/', async (req, res) => {
     if (err.code === '23505') {
       return res.status(400).json({ error: 'Cet email existe déjà' });
     }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/:id/group
+router.put('/:id/group', async (req, res) => {
+  const { groupId } = req.body;
+  try {
+    await pool.query(
+      `UPDATE user_roles SET group_id = $1 WHERE user_id = $2`,
+      [groupId || null, req.params.id]
+    );
+    await logAudit(req.user.id, 'update', 'user_group', req.params.id, { groupId });
+    res.json({ message: 'Groupe mis à jour' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/:id/status
+router.put('/:id/status', async (req, res) => {
+  const { status } = req.body;
+  if (!['active', 'inactive'].includes(status)) {
+    return res.status(400).json({ error: 'Statut invalide' });
+  }
+  try {
+    await pool.query('UPDATE users SET status = $1 WHERE id = $2', [status, req.params.id]);
+    await logAudit(req.user.id, 'update', 'user_status', req.params.id, { status });
+    res.json({ message: `Utilisateur ${status === 'active' ? 'activé' : 'désactivé'}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/:id/password
+router.put('/:id/password', async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
+  }
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.id]);
+    await logAudit(req.user.id, 'update', 'user_password', req.params.id, null);
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
