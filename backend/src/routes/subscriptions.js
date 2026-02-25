@@ -104,4 +104,17 @@ router.get('/member/:memberId', async (req, res) => {
   }
 });
 
+// GET /api/subscriptions/by-member/:memberId (alias)
+router.get('/by-member/:memberId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM subscriptions WHERE member_id = $1 ORDER BY created_at DESC',
+      [req.params.memberId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

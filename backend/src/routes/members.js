@@ -86,6 +86,38 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/members/import
+router.post('/import', async (req, res) => {
+  const { members } = req.body;
+  if (!members || !Array.isArray(members) || members.length === 0) {
+    return res.status(400).json({ error: 'Aucun membre à importer' });
+  }
+
+  try {
+    let imported = 0;
+    const errors = [];
+
+    for (const m of members) {
+      try {
+        const qrCode = m.cin || `IMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+        await pool.query(
+          `INSERT INTO members (full_name, phone, cin, date_of_birth, gender, qr_code)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [m.full_name, m.phone || '0000000000', m.cin || qrCode, m.date_of_birth || '2000-01-01', m.gender || 'Homme', qrCode]
+        );
+        imported++;
+      } catch (err) {
+        errors.push({ name: m.full_name, error: err.message });
+      }
+    }
+
+    await logAudit(req.user.id, 'import', 'member', null, { count: imported, errors: errors.length });
+    res.json({ message: `${imported} membres importés`, imported, errors });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/members/search/:query
 router.get('/search/:query', async (req, res) => {
   try {
