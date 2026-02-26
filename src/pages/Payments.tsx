@@ -95,11 +95,20 @@ export default function Payments() {
     if (payment.subscription_id) {
       const { data: sub } = await api.get(`/subscriptions/${payment.subscription_id}`);
       if (sub) {
-        const planConfig = plansMap[sub.plan];
-        if (planConfig) { planLabel = planConfig.label; planMonths = planConfig.months; }
-        else {
-          const found = plans.find(p => p.id === sub.plan || p.label.toLowerCase().replace(/\s+/g, '_') === sub.plan);
-          planLabel = found?.label || sub.plan;
+        // Try multiple lookup strategies for plan config
+        const planKey = sub.plan?.toLowerCase().replace(/\s+/g, '_');
+        const planConfig = plansMap[planKey];
+        if (planConfig) {
+          planLabel = planConfig.label;
+          planMonths = planConfig.months;
+        } else {
+          // Search by label match or ID
+          const found = plans.find(p =>
+            p.label === sub.plan ||
+            p.label.toLowerCase() === sub.plan?.toLowerCase() ||
+            p.id === sub.plan
+          );
+          planLabel = found?.label || sub.plan || 'Abonnement';
           planMonths = found?.months || 1;
         }
         amountTotal = sub.amount_mad;
