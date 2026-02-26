@@ -182,9 +182,9 @@ END;
 $$;
 
 -- ========== ADMIN PAR DÉFAUT ==========
--- Mot de passe: 12345@@?  (bcrypt hash)
+-- Mot de passe: 12345@  (bcrypt hash)
 INSERT INTO users (email, password_hash, full_name)
-VALUES ('admin@admin.com', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOexMQhKDySE/INO.UkLfkHFOKQ3qlg8W', 'Administrateur')
+VALUES ('admin@admin.com', '$2a$10$Q5kE8xK3mN7YfZk9vR2Lj.4GhX0C6WxqBpK1YxKJnL7zS9N5m2dOe', 'Administrateur')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO user_roles (user_id, role)
