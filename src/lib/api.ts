@@ -562,6 +562,17 @@ async function handleDelete(path: string): Promise<ApiResult> {
     return error ? err(error.message) : ok({ deleted: true });
   }
 
+  // Users delete
+  if (path.startsWith('/users/')) {
+    const userId = path.split('/')[2];
+    const { data, error } = await supabase.functions.invoke('create-staff-user', {
+      body: { action: 'delete_user', userId },
+    });
+    if (error) return err(error.message);
+    if (data?.error) return err(data.error);
+    return ok(data);
+  }
+
   console.warn('[api] Unhandled DELETE:', path);
   return err(`Route non gérée: DELETE ${path}`);
 }

@@ -49,6 +49,28 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Handle delete_user action
+  if (action === 'delete_user') {
+    const { userId } = body;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "userId requis" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    // Don't allow deleting yourself
+    if (userId === caller.id) {
+      return new Response(JSON.stringify({ error: "Vous ne pouvez pas supprimer votre propre compte" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    // Delete user_roles, profile, then auth user
+    await supabase.from("user_roles").delete().eq("user_id", userId);
+    await supabase.from("profiles").delete().eq("user_id", userId);
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ message: "Utilisateur supprimé" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // Default: create user
   const { email, password, fullName, role, groupId } = body;
 

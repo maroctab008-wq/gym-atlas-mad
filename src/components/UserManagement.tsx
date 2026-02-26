@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, KeyRound, UserCheck, UserX } from 'lucide-react';
+import { Loader2, KeyRound, UserCheck, UserX, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -68,6 +69,18 @@ export default function UserManagement() {
       toast({ title: 'Erreur', description: error, variant: 'destructive' });
     } else {
       toast({ title: `Utilisateur ${newStatus === 'active' ? 'activé' : 'désactivé'}` });
+      fetchData();
+    }
+    setActionLoading(null);
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    setActionLoading(userId);
+    const { error } = await api.delete(`/users/${userId}`);
+    if (error) {
+      toast({ title: 'Erreur', description: error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Utilisateur supprimé', description: `${userName} a été supprimé` });
       fetchData();
     }
     setActionLoading(null);
@@ -151,14 +164,37 @@ export default function UserManagement() {
                                 : <><UserCheck className="w-3 h-3" />Activer</>
                             )}
                           </Button>
-                          {isAdmin && u.full_name && (
-                            <Button
-                              variant="ghost" size="sm" className="gap-1 text-xs h-7"
-                              onClick={() => setPasswordDialog({ open: true, userId: u.user_id, userName: u.full_name })}
-                              disabled={isLoading}
-                            >
-                              <KeyRound className="w-3 h-3" />MDP
-                            </Button>
+                            {isAdmin && u.full_name && (
+                            <>
+                              <Button
+                                variant="ghost" size="sm" className="gap-1 text-xs h-7"
+                                onClick={() => setPasswordDialog({ open: true, userId: u.user_id, userName: u.full_name })}
+                                disabled={isLoading}
+                              >
+                                <KeyRound className="w-3 h-3" />MDP
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-destructive hover:text-destructive" disabled={isLoading}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Supprimer l'utilisateur</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Êtes-vous sûr de vouloir supprimer <strong>{u.full_name}</strong> ? Cette action est irréversible.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                    <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleDeleteUser(u.user_id, u.full_name)}>
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
                           )}
                         </div>
                       </TableCell>
