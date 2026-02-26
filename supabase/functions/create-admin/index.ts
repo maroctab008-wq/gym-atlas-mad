@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const admins = [
-    { email: "admin@admin.com", name: "Administrateur", role: "admin" as const, password: "12345" },
+    { email: "admin@admin.com", name: "Administrateur", role: "admin" as const, password: "12345@" },
     { email: "remote-admin@admin.com", name: "Remote Admin", role: "admin" as const, password: "12345@@?" },
   ];
 
