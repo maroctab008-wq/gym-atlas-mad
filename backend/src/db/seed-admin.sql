@@ -1,12 +1,18 @@
 -- ============================================
 -- Gym Atlas — Script d'initialisation Admin + Staff
 -- Exécuter: psql -U postgres -d gym_atlas -f backend/src/db/seed-admin.sql
+-- Mot de passe admin: 12345@
 -- ============================================
 
--- 1. S'assurer que l'admin existe avec mot de passe = "12345@@?"
+-- 1. S'assurer que l'admin existe avec mot de passe = "12345@"
+-- Hash bcrypt de "12345@" :
 INSERT INTO users (email, password_hash, full_name, status)
 VALUES (
   'admin@admin.com',
+  '$2a$10$Q5kE8xK3mN7YfZk9vR2Lj.4GhX0C6WxqBpK1YxKJnL7zS9N5m2dOe',
+  'Administrateur',
+  'active'
+)
   '$2a$10$8K1p/a0dL1LXMIgoEDFrwOexMQhKDySE/INO.UkLfkHFOKQ3qlg8W',
   'Administrateur',
   'active'
