@@ -15,24 +15,30 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const admins = [
-    { email: "admin@admin.com", name: "Administrateur", role: "admin" as const },
-    { email: "remote-admin@admin.com", name: "Remote Admin", role: "admin" as const },
+    { email: "admin@admin.com", name: "Administrateur", role: "admin" as const, password: "12345" },
+    { email: "remote-admin@admin.com", name: "Remote Admin", role: "admin" as const, password: "12345@@?" },
   ];
 
   const results = [];
 
   for (const admin of admins) {
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const exists = existingUsers?.users?.some(u => u.email === admin.email);
+    const existing = existingUsers?.users?.find(u => u.email === admin.email);
 
-    if (exists) {
-      results.push({ email: admin.email, status: "already exists" });
+    if (existing) {
+      // Update password for existing user
+      const { error: updateErr } = await supabase.auth.admin.updateUserById(existing.id, { password: admin.password });
+      if (updateErr) {
+        results.push({ email: admin.email, status: "password update error", error: updateErr.message });
+      } else {
+        results.push({ email: admin.email, status: "password updated" });
+      }
       continue;
     }
 
     const { data: newUser, error } = await supabase.auth.admin.createUser({
       email: admin.email,
-      password: "12345@@?",
+      password: admin.password,
       email_confirm: true,
       user_metadata: { full_name: admin.name },
     });
