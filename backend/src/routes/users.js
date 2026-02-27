@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT u.id as user_id, u.email, u.full_name, u.status, u.created_at,
-              ur.role, ur.group_id, pg.name as group_name
+              ur.group_id, pg.name as group_name
        FROM users u
        LEFT JOIN user_roles ur ON ur.user_id = u.id
        LEFT JOIN permission_groups pg ON pg.id = ur.group_id
@@ -36,7 +36,7 @@ router.get('/groups', async (req, res) => {
 
 // POST /api/users (create staff)
 router.post('/', async (req, res) => {
-  const { email, password, fullName, role, groupId } = req.body;
+  const { email, password, fullName, groupId } = req.body;
   if (!email || !password || !fullName) {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
   }
@@ -50,10 +50,10 @@ router.post('/', async (req, res) => {
 
     await pool.query(
       `INSERT INTO user_roles (user_id, role, group_id) VALUES ($1, $2, $3)`,
-      [rows[0].id, role || 'staff', groupId || null]
+      [rows[0].id, 'staff', groupId || null]
     );
 
-    await logAudit(req.user.id, 'create', 'user', rows[0].id, { email, role });
+    await logAudit(req.user.id, 'create', 'user', rows[0].id, { email, groupId });
     res.status(201).json({ message: 'Utilisateur créé', userId: rows[0].id });
   } catch (err) {
     if (err.code === '23505') {
