@@ -105,7 +105,6 @@ export default function UserManagement() {
               <TableRow>
               <TableHead className="text-xs font-medium uppercase tracking-wide">Nom</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Email</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Rôle</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Groupe</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Statut</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>
@@ -113,7 +112,7 @@ export default function UserManagement() {
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun utilisateur</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun utilisateur</TableCell></TableRow>
               ) : (
                 users.map(u => {
                   const status = u.status || 'active';
@@ -122,9 +121,6 @@ export default function UserManagement() {
                     <TableRow key={u.user_id}>
                       <TableCell className="font-medium">{u.full_name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{u.email || '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs capitalize">{u.role}</Badge>
-                      </TableCell>
                       <TableCell>
                         <Select
                           value={u.group_id || ''}
