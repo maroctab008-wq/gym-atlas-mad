@@ -175,31 +175,12 @@ async function handleGet(path: string): Promise<ApiResult> {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!roleData) return ok({ role: 'staff', group_name: null, permissions: {} });
-
-    if (roleData.role === 'admin') {
-      return ok({
-        role: 'admin',
-        group_name: 'Administrateur',
-        permissions: {
-          view_dashboard_kpis: true, members_add: true, members_edit: true, members_delete: true,
-          payments_view: true, payments_create: true, payments_delete: true,
-          expenses_view: true, expenses_import: true, access_override: true, settings_access: true,
-        },
-      });
-    }
+    if (!roleData) return ok({ group_name: null, permissions: {} });
 
     const pg = roleData.permission_groups as any;
-    const defaultPerms = {
-      view_dashboard_kpis: false, members_add: true, members_edit: true, members_delete: false,
-      payments_view: true, payments_create: true, payments_delete: false,
-      expenses_view: true, expenses_import: false, access_override: false, settings_access: false,
-    };
-
     return ok({
-      role: roleData.role,
-      group_name: pg?.name || 'Staff (défaut)',
-      permissions: pg?.permissions || defaultPerms,
+      group_name: pg?.name || null,
+      permissions: pg?.permissions || {},
     });
   }
 

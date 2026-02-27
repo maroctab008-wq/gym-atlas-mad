@@ -4,9 +4,11 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { Outlet } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function DashboardLayout() {
-  const { profile, role } = useAuth();
+  const { profile } = useAuth();
+  const { groupName } = usePermissions();
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U';
@@ -17,7 +19,7 @@ export default function DashboardLayout() {
       <div className="flex-1 flex flex-col overflow-auto">
         <header className="h-14 border-b border-border bg-card flex items-center justify-end px-6 gap-2 shrink-0">
           <Badge variant="outline" className="text-xs mr-2">
-            {role === 'admin' ? 'Admin' : 'Staff'}
+            {groupName || 'Aucun groupe'}
           </Badge>
           <NotificationBell />
           <ThemeToggle />

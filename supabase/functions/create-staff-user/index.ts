@@ -25,10 +25,17 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // Check admin role
-  const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", caller.id).limit(1).single();
-  if (!roleData || roleData.role !== "admin") {
-    return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  // Check caller has settings_access permission via group
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("group_id, permission_groups(permissions)")
+    .eq("user_id", caller.id)
+    .limit(1)
+    .single();
+  
+  const permissions = (roleData?.permission_groups as any)?.permissions;
+  if (!permissions?.settings_access) {
+    return new Response(JSON.stringify({ error: "Accès réservé — permission settings_access requise" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const body = await req.json();
@@ -72,7 +79,7 @@ Deno.serve(async (req) => {
   }
 
   // Default: create user
-  const { email, password, fullName, role, groupId } = body;
+  const { email, password, fullName, groupId } = body;
 
   if (!email || !password || !fullName) {
     return new Response(JSON.stringify({ error: "Champs obligatoires manquants" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -93,7 +100,7 @@ Deno.serve(async (req) => {
   // Assign role
   const { error: roleError } = await supabase
     .from("user_roles")
-    .insert({ user_id: newUser.user.id, role: role || "staff", group_id: groupId || null });
+    .insert({ user_id: newUser.user.id, role: "staff", group_id: groupId || null });
 
   if (roleError) {
     return new Response(JSON.stringify({ error: roleError.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

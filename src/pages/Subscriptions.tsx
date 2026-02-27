@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatMAD, formatDateFR } from "@/lib/formatters";
 import { Loader2, RefreshCw, Filter, CalendarDays, Settings2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { usePlans } from "@/hooks/usePlans";
 import { useToast } from "@/hooks/use-toast";
 import EditSubscriptionDialog from "@/components/EditSubscriptionDialog";
@@ -37,7 +37,7 @@ const paymentStatusBadge = (amountMad: number, paidMad: number) => {
 type QuickFilter = "all" | "active" | "expired" | "pending";
 
 export default function Subscriptions() {
-  const { role } = useAuth();
+  const { can } = usePermissions();
   const { plans, loading: plansLoading, refetch: refetchPlans } = usePlans();
   const { toast } = useToast();
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -102,7 +102,7 @@ export default function Subscriptions() {
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Synchroniser les membres
           </Button>
-          {role === "admin" && (
+          {can("settings_access") && (
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="gap-2"><Settings2 className="w-4 h-4" />Gestion des Plans</Button>
@@ -110,7 +110,7 @@ export default function Subscriptions() {
               <DialogContent className="max-w-2xl p-0"><PlanManagement onPlansChanged={() => refetchPlans()} /></DialogContent>
             </Dialog>
           )}
-          {role === "admin" && <NewSubscriptionDialog onSuccess={fetchSubs} />}
+          {can("payments_create") && <NewSubscriptionDialog onSuccess={fetchSubs} />}
         </div>
       </div>
 
@@ -157,12 +157,12 @@ export default function Subscriptions() {
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Payé</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Reste</TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-wide">Paiement</TableHead>
-                {role === "admin" && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
+                {can("members_edit") && <TableHead className="text-xs font-medium uppercase tracking-wide">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={role === "admin" ? 9 : 8} className="text-center py-8 text-muted-foreground">Aucun abonnement</TableCell></TableRow>
+                <TableRow><TableCell colSpan={can("members_edit") ? 9 : 8} className="text-center py-8 text-muted-foreground">Aucun abonnement</TableCell></TableRow>
               ) : (
                 filtered.map((sub) => {
                   const st = statusConfig[sub.status] || statusConfig.pending;
@@ -178,7 +178,7 @@ export default function Subscriptions() {
                       <TableCell className="font-mono text-sm">{formatMAD(sub.paid_mad)}</TableCell>
                       <TableCell>{remaining > 0 ? <span className="font-mono text-sm text-warning">{formatMAD(remaining)}</span> : <span className="font-mono text-sm text-success">0 MAD</span>}</TableCell>
                       <TableCell>{paymentStatusBadge(sub.amount_mad, sub.paid_mad)}</TableCell>
-                      {role === "admin" && (
+                      {can("members_edit") && (
                         <TableCell>
                           <div className="flex gap-1">
                             <EditSubscriptionDialog sub={{ ...sub, member_name: memberName }} onSuccess={fetchSubs} />
