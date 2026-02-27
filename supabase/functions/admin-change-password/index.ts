@@ -24,9 +24,17 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", caller.id).limit(1).single();
-  if (!roleData || roleData.role !== "admin") {
-    return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  // Check caller has settings_access permission via group
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("group_id, permission_groups(permissions)")
+    .eq("user_id", caller.id)
+    .limit(1)
+    .single();
+  
+  const permissions = (roleData?.permission_groups as any)?.permissions;
+  if (!permissions?.settings_access) {
+    return new Response(JSON.stringify({ error: "Accès réservé — permission settings_access requise" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const { userId, newPassword } = await req.json();

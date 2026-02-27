@@ -52,7 +52,7 @@ export const PERMISSION_CATEGORIES: Record<string, (keyof Permissions)[]> = {
 };
 
 export function usePermissions() {
-  const { user, role } = useAuth();
+  const { user } = useAuth();
   const [permissions, setPermissions] = useState<Permissions>(NO_PERMISSIONS);
   const [groupName, setGroupName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,14 +65,7 @@ export function usePermissions() {
       return;
     }
 
-    if (role === 'admin') {
-      setPermissions(ALL_PERMISSIONS);
-      setGroupName('Administrateur');
-      setLoading(false);
-      return;
-    }
-
-    // Fetch permissions from API
+    // Always fetch permissions from group — no role shortcut
     api.get(`/auth/permissions`).then(({ data }) => {
       if (data) {
         setGroupName(data.group_name || null);
@@ -80,10 +73,9 @@ export function usePermissions() {
       }
       setLoading(false);
     });
-  }, [user, role]);
+  }, [user]);
 
   const can = (permission: keyof Permissions) => {
-    if (role === 'admin') return true;
     return permissions[permission] ?? false;
   };
 

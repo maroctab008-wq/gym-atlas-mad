@@ -8,7 +8,7 @@ import { Loader2, KeyRound, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import NewUserDialog from '@/components/NewUserDialog';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 
@@ -25,14 +25,14 @@ interface UserRow {
 }
 
 export default function UserManagement() {
-  const { role } = useAuth();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [passwordDialog, setPasswordDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: '', userName: '' });
-  const isAdmin = role === 'admin';
+  const canManage = can('settings_access');
 
   const fetchData = async () => {
     const [usersRes, groupsRes] = await Promise.all([
@@ -160,7 +160,7 @@ export default function UserManagement() {
                                 : <><UserCheck className="w-3 h-3" />Activer</>
                             )}
                           </Button>
-                            {isAdmin && u.full_name && (
+                            {canManage && u.full_name && (
                             <>
                               <Button
                                 variant="ghost" size="sm" className="gap-1 text-xs h-7"

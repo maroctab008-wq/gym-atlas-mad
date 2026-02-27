@@ -134,10 +134,10 @@ export default function Profile() {
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" placeholder="email@exemple.com" />
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Rôle</Label>
+                  <Label className="text-xs text-muted-foreground">Groupe</Label>
                   <div className="mt-1">
-                    <Badge variant={role === 'admin' ? 'default' : 'secondary'}>
-                      {role === 'admin' ? 'Administrateur' : 'Staff'}
+                    <Badge variant="default">
+                      {groupName || 'Aucun groupe'}
                     </Badge>
                   </div>
                 </div>
@@ -166,10 +166,10 @@ export default function Profile() {
                   <p className="text-sm font-medium">{user?.email || '—'}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Rôle</Label>
+                  <Label className="text-xs text-muted-foreground">Groupe</Label>
                   <div className="mt-1">
-                    <Badge variant={role === 'admin' ? 'default' : 'secondary'}>
-                      {role === 'admin' ? 'Administrateur' : 'Staff'}
+                    <Badge variant="default">
+                      {groupName || 'Aucun groupe'}
                     </Badge>
                   </div>
                 </div>

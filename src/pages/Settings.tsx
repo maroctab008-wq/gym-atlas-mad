@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, Save, Loader2, Building2, CreditCard, Users, ShieldCheck, Shield, Wrench } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import PlanManagement from "@/components/PlanManagement";
 import GroupManagement from "@/components/GroupManagement";
 import UserManagement from "@/components/UserManagement";
@@ -18,7 +18,7 @@ import PortailSection from "@/components/PortailSection";
 interface BrandingData { gym_name: string; phone: string; website: string; address: string; ice: string; logo_url: string; }
 
 export default function Settings() {
-  const { role } = useAuth();
+  const { can, loading: permLoading } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
@@ -54,7 +54,8 @@ export default function Settings() {
     else toast({ title: "Paramètres enregistrés" });
   };
 
-  if (role !== "admin") return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Accès réservé aux administrateurs</p></div>;
+  if (permLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (!can('settings_access')) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Accès réservé — votre groupe n'a pas cette permission</p></div>;
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   return (
